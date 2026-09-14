@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Peserta {
+  id              String    @id @default(cuid())
+  idPeserta       String    @unique // format: PASK-XXXX / TIDAK-IKUT
+  namaLengkap     String
+  jenisKelamin    String
+  asalSekolah     String
+  partisipasi     String    // "Ikut" | "Tidak Ikut"
+  alasanTidakIkut String?
+  waPribadi       String?
+  waDarurat       String?
+  riwayatMedis    String?
+  waktuBerangkat  DateTime?
+  waktuPulang     DateTime?
+  username        String?   @unique
+  passwordHash    String?
+  statusPassword  String?   // "Wajib Ganti" | "Selesai"
+  createdAt       DateTime  @default(now())
+  logs            LogScan[]
+}
+
+model LogScan {
+  id         String   @id @default(cuid())
+  waktuScan  DateTime @default(now())
+  idPeserta  String
+  nama       String
+  keterangan String   // "Scan Keberangkatan" | "Scan Kepulangan"
+  peserta    Peserta  @relation(fields: [idPeserta], references: [idPeserta])
+}

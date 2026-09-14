@@ -1,0 +1,6 @@
+{
+  "name": "Giat Rihlah Paskibar Samarang",
+  "description": "Sistem Manajemen Acara Giat Rihlah Paskibra Kecamatan Samarang berbasis Next.js, Prisma ORM, dan PostgreSQL dengan registrasi peserta, autentikasi peserta & panitia, rate limiting, tiket QR code digital, dan pemindai presensi real-time.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
