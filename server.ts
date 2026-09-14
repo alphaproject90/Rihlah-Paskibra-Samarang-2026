@@ -35,7 +35,12 @@ const prisma = new PrismaClient({
 
 const app = express();
 const PORT = 3000;
-const JWT_SECRET_RAW = process.env.JWT_SECRET || 'rihlah-paskibra-samarang-jwt-secret-key-32-chars-long!';
+
+// ⚠️ SECURITY FIX #4: Fail-fast if JWT_SECRET is not configured
+if (!process.env.JWT_SECRET) {
+  throw new Error('❌ FATAL: JWT_SECRET environment variable is required. Set it in .env or your deployment platform.');
+}
+const JWT_SECRET_RAW = process.env.JWT_SECRET;
 const JWT_KEY = new TextEncoder().encode(JWT_SECRET_RAW);
 const PESERTA_COOKIE = 'rihlah_peserta_token';
 const PANITIA_COOKIE = 'rihlah_panitia_token';
@@ -141,6 +146,12 @@ app.get('/api/peserta', async (req: Request, res: Response) => {
   try {
     const token = getSession(req, 'panitia');
     const session = token ? await verifyToken(token) : null;
+
+    // ⚠️ SECURITY FIX #1: Guard clause — tolak jika sesi tidak valid atau role bukan panitia
+    if (!session || (session as any).role !== 'panitia') {
+      res.status(401).json({ status: 'error', message: 'Akses ditolak. Sesi panitia tidak valid.' });
+      return;
+    }
 
     // Ambil data peserta dari PostgreSQL (kolom passwordHash tidak pernah di-serialize)
     const list = await prisma.peserta.findMany({
@@ -530,13 +541,14 @@ const handleLoginPanitia = async (req: Request, res: Response) => {
     }
 
     const pinHashEnv = process.env.PANITIA_PIN_HASH;
-    let isValid = false;
 
-    if (pinHashEnv) {
-      isValid = await bcrypt.compare(pinStr, pinHashEnv);
-    } else {
-      isValid = pinStr === '1945' || pinStr === '0000';
+    // ⚠️ SECURITY FIX #3: Fail-fast if PANITIA_PIN_HASH is not configured
+    if (!pinHashEnv) {
+      res.status(500).json({ status: 'error', message: 'PANITIA_PIN_HASH belum dikonfigurasi di environment.' });
+      return;
     }
+
+    const isValid = await bcrypt.compare(pinStr, pinHashEnv);
 
     if (!isValid) {
       const failRec = await recordFailedAttempt(rateKey);
@@ -589,6 +601,14 @@ app.post('/api/auth/logout', (req: Request, res: Response) => {
 // 9. POST /api/scan (Presensi QR Code, Prisma transaction, LogScan audit)
 app.post('/api/scan', async (req: Request, res: Response) => {
   try {
+    // ⚠️ SECURITY FIX #2: Guard clause — verifikasi sesi panitia sebelum memproses scan
+    const token = getSession(req, 'panitia');
+    const session = token ? await verifyToken(token) : null;
+    if (!session || (session as any).role !== 'panitia') {
+      res.status(401).json({ status: 'error', message: 'Akses ditolak. Fitur scanner hanya dapat digunakan oleh Panitia.' });
+      return;
+    }
+
     const { id, idPeserta, mode } = req.body || {};
     const targetId = (id || idPeserta || '').toString().trim().toUpperCase();
     const scanMode = mode === 'pulang' ? 'pulang' : 'berangkat';
