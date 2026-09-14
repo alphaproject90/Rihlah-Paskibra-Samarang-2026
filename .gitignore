@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+.vercel/
+tsconfig.tsbuildinfo
+
+.vercel
+.env*
