@@ -2,7 +2,10 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 
-const JWT_SECRET_RAW = process.env.JWT_SECRET || 'rihlah-paskibra-samarang-jwt-secret-key-32-chars-long!';
+if (!process.env.JWT_SECRET) {
+  throw new Error('❌ FATAL: JWT_SECRET environment variable is required. Set it in .env or your deployment platform.');
+}
+const JWT_SECRET_RAW = process.env.JWT_SECRET;
 const JWT_KEY = new TextEncoder().encode(JWT_SECRET_RAW);
 
 export interface PesertaSessionPayload {
