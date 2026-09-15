@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../lib/prisma';
-import { getSession } from '../lib/api/auth';
+import { prisma } from '../lib/prisma.js';
+import { getSession } from '../lib/api/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

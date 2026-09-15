@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../../prisma';
+import { prisma } from '../../prisma.js';
 import bcrypt from 'bcryptjs';
-import { STRONG_PASSWORD_REGEX } from '../../validation';
-import { getSession } from '../auth';
+import { STRONG_PASSWORD_REGEX } from '../../validation/index.js';
+import { getSession } from '../auth.js';
 
 export default async function handleGantiPassword(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

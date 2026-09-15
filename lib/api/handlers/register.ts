@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../../prisma';
+import { prisma } from '../../prisma.js';
 import bcrypt from 'bcryptjs';
-import { PHONE_REGEX, USERNAME_REGEX, STRONG_PASSWORD_REGEX } from '../../validation';
+import { PHONE_REGEX, USERNAME_REGEX, STRONG_PASSWORD_REGEX } from '../../validation/index.js';
 
 export default async function handleRegister(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

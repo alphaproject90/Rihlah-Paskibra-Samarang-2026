@@ -1,3 +1,3 @@
-import handleLoginPeserta from '../lib/api/handlers/loginPeserta';
+import handleLoginPeserta from '../lib/api/handlers/loginPeserta.js';
 
 export default handleLoginPeserta;

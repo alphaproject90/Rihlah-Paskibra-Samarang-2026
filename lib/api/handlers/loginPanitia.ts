@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../auth/rateLimit';
-import { signToken, setCookie, PANITIA_COOKIE } from '../auth';
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../auth/rateLimit.js';
+import { signToken, setCookie, PANITIA_COOKIE } from '../auth.js';
+
+const PESAN_GAGAL_LOGIN = 'Username atau Password Panitia tidak sesuai.';
 
 export default async function handleLoginPanitia(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -11,32 +13,36 @@ export default async function handleLoginPanitia(req: VercelRequest, res: Vercel
   }
 
   try {
-    const { pin } = req.body || {};
-    const pinStr = (pin || '').toString().trim();
+    const { username, password } = req.body || {};
+    const usernameInput = (username || '').toString().trim();
+    const passwordInput = (password || '').toString();
 
-    if (!pinStr || pinStr.length < 4) {
-      res.status(400).json({ status: 'error', message: 'PIN panitia minimal 4 digit angka.' });
+    if (!usernameInput || !passwordInput) {
+      res.status(400).json({ status: 'error', message: 'Username dan password panitia wajib diisi.' });
       return;
     }
 
-    const rateKey = 'panitia_pin_auth';
+    const rateKey = 'panitia_auth';
     const rateCheck = await checkRateLimit(rateKey);
     if (!rateCheck.allowed) {
       res.status(429).json({ status: 'error', message: rateCheck.message });
       return;
     }
 
-    const pinHashEnv = process.env.PANITIA_PIN_HASH;
+    const panitiaUsername = process.env.PANITIA_USERNAME;
+    const panitiaPasswordHash = process.env.PANITIA_PASSWORD_HASH;
 
-    // ⚠️ SECURITY FIX #3 (Tahap 1, dipertahankan): fail-fast, TIDAK ada fallback PIN default
-    if (!pinHashEnv) {
-      res.status(500).json({ status: 'error', message: 'PANITIA_PIN_HASH belum dikonfigurasi di environment.' });
+    // ⚠️ Fail-fast: sama seperti PANITIA_PIN_HASH sebelumnya, tidak ada fallback default.
+    if (!panitiaUsername || !panitiaPasswordHash) {
+      res.status(500).json({ status: 'error', message: 'PANITIA_USERNAME / PANITIA_PASSWORD_HASH belum dikonfigurasi di environment.' });
       return;
     }
 
-    const isValid = await bcrypt.compare(pinStr, pinHashEnv);
+    // Bandingkan username (case-sensitive, sesuai apa adanya yang dikonfigurasi)
+    const usernameMatch = usernameInput === panitiaUsername;
+    const passwordMatch = await bcrypt.compare(passwordInput, panitiaPasswordHash);
 
-    if (!isValid) {
+    if (!usernameMatch || !passwordMatch) {
       const failRec = await recordFailedAttempt(rateKey);
       if (failRec.locked) {
         res.status(429).json({
@@ -45,7 +51,7 @@ export default async function handleLoginPanitia(req: VercelRequest, res: Vercel
         });
         return;
       }
-      res.status(401).json({ status: 'error', message: 'PIN Panitia salah.', valid: false });
+      res.status(401).json({ status: 'error', message: PESAN_GAGAL_LOGIN, valid: false });
       return;
     }
 

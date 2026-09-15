@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../../prisma';
+import { prisma } from '../../prisma.js';
 import bcrypt from 'bcryptjs';
-import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../auth/rateLimit';
-import { signToken, setCookie, PESERTA_COOKIE } from '../auth';
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../auth/rateLimit.js';
+import { signToken, setCookie, PESERTA_COOKIE } from '../auth.js';
 
 const PESAN_GAGAL_LOGIN = 'Username atau Password tidak sesuai. Periksa kembali data Anda.';
 

@@ -1,3 +1,3 @@
-import handleGantiPassword from '../lib/api/handlers/gantiPassword';
+import handleGantiPassword from '../lib/api/handlers/gantiPassword.js';
 
 export default handleGantiPassword;
