@@ -21,6 +21,14 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
   onBukaScanner,
   loading
 }) => {
+  // Normalisasi aman: akses .data jika respons dibungkus, atau langsung jika berupa objek
+  const statsAktif: StatsRihlah = (stats as any)?.data ?? stats ?? {
+    total: 0,
+    tidakIkut: 0,
+    berangkat: 0,
+    pulang: 0,
+  };
+
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -137,7 +145,7 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
             Total Ikut
           </span>
           <span className="text-2xl font-black text-slate-800 block mt-0.5">
-            {stats.total}
+            {statsAktif.total}
           </span>
         </div>
         <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
@@ -145,7 +153,7 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
             Tidak Ikut
           </span>
           <span className="text-2xl font-black text-slate-800 block mt-0.5">
-            {stats.tidakIkut}
+            {statsAktif.tidakIkut}
           </span>
         </div>
         <div className="bg-green-50/60 border border-green-100 p-4 rounded-2xl">
@@ -153,15 +161,15 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
             Check-in Berangkat
           </span>
           <span className="text-2xl font-black text-green-700 block mt-0.5">
-            {stats.berangkat}
+            {statsAktif.berangkat}
           </span>
         </div>
         <div className="bg-blue-50/60 border border-blue-100 p-4 rounded-2xl">
           <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
             Check-in Pulang
           </span>
-          <span className="text-2xl font-black text-blue-700 block mt-0.5">
-            {stats.pulang}
+          <span className="text-2xl font-black text-blue-800 block mt-0.5">
+            {statsAktif.pulang}
           </span>
         </div>
       </div>

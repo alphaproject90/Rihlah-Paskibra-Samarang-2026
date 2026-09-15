@@ -12,6 +12,14 @@ export const PesertaStatistikView: React.FC<PesertaStatistikViewProps> = ({
   pesertaList,
   onOpenLoginPeserta
 }) => {
+  // Normalisasi aman: akses .data jika respons dibungkus, atau langsung jika berupa objek
+  const statsAktif: StatsRihlah = (stats as any)?.data ?? stats ?? {
+    total: 0,
+    tidakIkut: 0,
+    berangkat: 0,
+    pulang: 0,
+  };
+
   const [filterSekolah, setFilterSekolah] = useState('');
   const [searchNama, setSearchNama] = useState('');
   const [detailPeserta, setDetailPeserta] = useState<PesertaRihlah | null>(null);
@@ -48,7 +56,7 @@ export const PesertaStatistikView: React.FC<PesertaStatistikViewProps> = ({
             Peserta Ikut
           </span>
           <span className="text-2xl font-black text-green-800 block mt-0.5">
-            {stats.total}
+            {statsAktif.total}
           </span>
         </div>
         <div className="bg-red-50/70 border border-red-200/80 p-3.5 rounded-2xl">
@@ -56,7 +64,7 @@ export const PesertaStatistikView: React.FC<PesertaStatistikViewProps> = ({
             Tidak Ikut
           </span>
           <span className="text-2xl font-black text-red-800 block mt-0.5">
-            {stats.tidakIkut}
+            {statsAktif.tidakIkut}
           </span>
         </div>
         <div className="bg-blue-50/70 border border-blue-200/80 p-3.5 rounded-2xl">
@@ -64,7 +72,7 @@ export const PesertaStatistikView: React.FC<PesertaStatistikViewProps> = ({
             Check-in Berangkat
           </span>
           <span className="text-2xl font-black text-blue-800 block mt-0.5">
-            {stats.berangkat}
+            {statsAktif.berangkat}
           </span>
         </div>
         <div className="bg-purple-50/70 border border-purple-200/80 p-3.5 rounded-2xl">
@@ -72,7 +80,7 @@ export const PesertaStatistikView: React.FC<PesertaStatistikViewProps> = ({
             Check-in Pulang
           </span>
           <span className="text-2xl font-black text-purple-800 block mt-0.5">
-            {stats.pulang}
+            {statsAktif.pulang}
           </span>
         </div>
       </div>

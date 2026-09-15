@@ -2,12 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { clearAuthCookies } from '../../lib/api/auth.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    res.status(405).json({ status: 'error', message: 'Method not allowed' });
-    return;
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
+  // Clear cookies menggunakan fungsi sentral agar seluruh token dihapus bersih
   clearAuthCookies(res);
-  res.json({ status: 'success', message: 'Logout berhasil' });
+
+  return res.status(200).json({ success: true, message: 'Logged out successfully' });
 }

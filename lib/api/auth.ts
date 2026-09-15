@@ -16,11 +16,19 @@ if (!process.env.JWT_SECRET) {
 
 const JWT_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 
-export const PESERTA_COOKIE = 'rihlah_peserta_token';
-export const PANITIA_COOKIE = 'rihlah_panitia_token';
+export const SESSION_COOKIE = 'rihlah_session_token';
 
-export async function signToken(payload: Record<string, unknown>, expiresIn = '24h'): Promise<string> {
-  return await new SignJWT(payload)
+export async function signToken(
+  payload: Record<string, unknown>,
+  expiresInOrRole: string | 'panitia' | 'peserta' = '24h'
+): Promise<string> {
+  const isRole = expiresInOrRole === 'panitia' || expiresInOrRole === 'peserta';
+  const role = isRole ? expiresInOrRole : (payload.role as string | undefined);
+  const expiresIn = isRole ? (expiresInOrRole === 'panitia' ? '12h' : '24h') : expiresInOrRole;
+
+  const finalPayload = role ? { ...payload, role } : payload;
+
+  return await new SignJWT(finalPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
@@ -51,13 +59,25 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
 }
 
 /**
- * Persis logika getSession() di server.ts: cari cookie sesuai role yang diminta,
- * fallback ke Authorization: Bearer, lalu fallback ke cookie role lain mana pun ada.
+ * Logika baku getSessionToken: cari cookie baku rihlah_session_token,
+ * fallback ke legacy cookies, lalu fallback ke Authorization: Bearer.
  */
 export function getSessionToken(req: VercelRequest, requiredRole?: 'peserta' | 'panitia'): string | undefined {
   const cookies = parseCookies(req.headers.cookie);
-  let token = requiredRole === 'panitia' ? cookies[PANITIA_COOKIE] : cookies[PESERTA_COOKIE];
 
+  // 1. Cek cookie baku rihlah_session_token terlebih dahulu
+  let token = cookies[SESSION_COOKIE];
+
+  // 2. Fallback ke nama cookie legacy jika ada sesi lama yang belum logout
+  if (!token) {
+    if (requiredRole === 'panitia') {
+      token = cookies['rihlah_panitia_token'] || cookies['panitia_token'];
+    } else if (requiredRole === 'peserta') {
+      token = cookies['rihlah_peserta_token'] || cookies['peserta_token'];
+    }
+  }
+
+  // 3. Fallback ke Authorization: Bearer
   if (!token) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -65,8 +85,14 @@ export function getSessionToken(req: VercelRequest, requiredRole?: 'peserta' | '
     }
   }
 
+  // 4. Fallback ke cookie apa pun yang tersedia
   if (!token) {
-    token = cookies[PANITIA_COOKIE] || cookies[PESERTA_COOKIE];
+    token =
+      cookies[SESSION_COOKIE] ||
+      cookies['rihlah_panitia_token'] ||
+      cookies['rihlah_peserta_token'] ||
+      cookies['panitia_token'] ||
+      cookies['peserta_token'];
   }
 
   return token;
@@ -78,12 +104,21 @@ export async function getSession(req: VercelRequest, requiredRole?: 'peserta' | 
 }
 
 export function setCookie(res: import('@vercel/node').VercelResponse, name: string, value: string, maxAgeSeconds: number) {
-  res.setHeader('Set-Cookie', `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}`);
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.setHeader(
+    'Set-Cookie',
+    `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${
+      isProduction ? '; Secure' : ''
+    }`
+  );
 }
 
 export function clearAuthCookies(res: import('@vercel/node').VercelResponse) {
   res.setHeader('Set-Cookie', [
-    `${PESERTA_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
-    `${PANITIA_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`,
+    'rihlah_peserta_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0',
+    'rihlah_panitia_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0',
+    'peserta_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0',
+    'panitia_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0',
   ]);
 }

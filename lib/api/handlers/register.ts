@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../../prisma.js';
 import bcrypt from 'bcryptjs';
-import { PHONE_REGEX, USERNAME_REGEX, STRONG_PASSWORD_REGEX } from '../../validation/index.js';
+import { RegisterPesertaSchema } from '../../validation/index.js';
 
 export default async function handleRegister(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -11,55 +11,15 @@ export default async function handleRegister(req: VercelRequest, res: VercelResp
   }
 
   try {
-    const payload = req.body;
-    if (!payload || !payload.nama || !payload.unit) {
-      res.status(400).json({ status: 'error', message: 'Data pendaftaran belum lengkap.' });
+    const parseResult = RegisterPesertaSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message || 'Data pendaftaran tidak valid.';
+      res.status(400).json({ status: 'error', error: firstError, message: firstError });
       return;
     }
 
+    const payload = parseResult.data;
     const isIkut = payload.partisipasi === 'Ikut';
-
-    // Validasi server-side
-    if (isIkut) {
-      const waPeserta = (payload.waPeserta || '').toString().trim();
-      const waDarurat = (payload.waDarurat || '').toString().trim();
-      const usernameInput = (payload.username || '').toString().trim().toLowerCase();
-      const passwordInput = (payload.password || '').toString();
-
-      if (!PHONE_REGEX.test(waPeserta)) {
-        res.json({
-          status: 'error',
-          message: 'Nomor WhatsApp Peserta tidak valid. Gunakan format nomor telepon yang benar (contoh: 08123456789).',
-        });
-        return;
-      }
-      if (!PHONE_REGEX.test(waDarurat)) {
-        res.json({
-          status: 'error',
-          message: 'Nomor WhatsApp Darurat tidak valid. Gunakan format nomor telepon yang benar (contoh: 08123456789).',
-        });
-        return;
-      }
-      if (!USERNAME_REGEX.test(usernameInput)) {
-        res.json({
-          status: 'error',
-          message: 'Username tidak valid. Gunakan 4-20 karakter huruf/angka/underscore tanpa spasi.',
-        });
-        return;
-      }
-      if (!STRONG_PASSWORD_REGEX.test(passwordInput)) {
-        res.json({
-          status: 'error',
-          message: 'Password minimal 8 karakter dan harus kombinasi huruf besar, huruf kecil, angka, dan simbol.',
-        });
-        return;
-      }
-    } else {
-      if (!payload.alasan || payload.alasan.trim().length < 3) {
-        res.json({ status: 'error', message: 'Harap cantumkan alasan tidak mengikuti rihlah.' });
-        return;
-      }
-    }
 
     // Transaksi Prisma mencegah race condition pendaftaran
     const created = await prisma.$transaction(async (tx) => {
@@ -90,10 +50,10 @@ export default async function handleRegister(req: VercelRequest, res: VercelResp
         idPeserta = `TIDAK-IKUT-${String(countTidak + 1).padStart(4, '0')}`;
       }
 
-      // Hash password dengan bcrypt cost >= 10
+      // Hash password dengan bcrypt cost factor 12
       let passHash: string | null = null;
       if (isIkut && payload.password) {
-        passHash = await bcrypt.hash(payload.password, 10);
+        passHash = await bcrypt.hash(payload.password, 12);
       }
 
       const record = await tx.peserta.create({
