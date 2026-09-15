@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { prisma } from '../../lib/prisma';
-import { getSession } from '../../lib/api/auth';
-import { STRONG_PASSWORD_REGEX, GantiPasswordPesertaSchema } from '../../lib/validation';
+import { prisma } from '../../lib/prisma.js';
+import { getSession } from '../../lib/api/auth.js';
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../lib/auth/rateLimit.js';
+import { STRONG_PASSWORD_REGEX, GantiPasswordPesertaSchema } from '../../lib/validation/index.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
@@ -25,6 +26,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  // Ekstrak IP klien untuk rate limiting
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+
   try {
     // Cek sesi yang mungkin ada (panitia atau peserta)
     const sessionPanitia = await getSession(req, 'panitia');
@@ -41,6 +45,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({
         error: 'Permintaan tidak valid: Sertakan password lama untuk ganti password, atau nomor WhatsApp untuk reset lupa password.',
       });
+    }
+
+    // Tentukan pasangan key rate limit untuk non-panitia
+    let ipKey = '';
+    let targetKey = '';
+
+    if (!isPanitiaReset) {
+      if (isForgotReset) {
+        ipKey = `ganti_pass_forgot_ip_${ip}`;
+        targetKey = `ganti_pass_forgot_target_${idTarget}`;
+      } else {
+        const idUser = (sessionPeserta as { idPeserta?: string })?.idPeserta || idTarget;
+        ipKey = `ganti_pass_active_ip_${ip}`;
+        targetKey = `ganti_pass_active_user_${idUser}`;
+      }
+
+      // Periksa KEDUA key secara paralel via Promise.all
+      const [ipCheck, targetCheck] = await Promise.all([
+        checkRateLimit(ipKey),
+        checkRateLimit(targetKey),
+      ]);
+
+      if (!ipCheck.allowed || !targetCheck.allowed) {
+        return res.status(429).json({ error: ipCheck.message || targetCheck.message });
+      }
     }
 
     // Temukan peserta target
@@ -61,6 +90,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!targetPeserta) {
+      if (isForgotReset && !isPanitiaReset) {
+        // Anti-enumeration: Catat gagal dan samakan respons dengan WA mismatch
+        const [ipFail] = await Promise.all([
+          recordFailedAttempt(ipKey),
+          recordFailedAttempt(targetKey),
+        ]);
+        if (ipFail.locked) {
+          return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
+        }
+        return res.status(400).json({ error: 'Data tidak ditemukan atau nomor WhatsApp tidak cocok.' });
+      }
       return res.status(404).json({ error: 'Akun peserta tidak ditemukan.' });
     }
 
@@ -74,6 +114,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (targetPeserta.passwordHash) {
         const isValid = await bcrypt.compare(oldPassword, targetPeserta.passwordHash);
         if (!isValid) {
+          const [ipFail] = await Promise.all([
+            recordFailedAttempt(ipKey),
+            recordFailedAttempt(targetKey),
+          ]);
+          if (ipFail.locked) {
+            return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
+          }
           return res.status(401).json({ error: 'Password lama salah.' });
         }
       }
@@ -92,8 +139,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         dbWaDarurat === waInput;
 
       if (!isWaMatch) {
+        // Anti-enumeration: pesan identik dengan user not found
+        const [ipFail] = await Promise.all([
+          recordFailedAttempt(ipKey),
+          recordFailedAttempt(targetKey),
+        ]);
+        if (ipFail.locked) {
+          return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
+        }
         return res.status(400).json({
-          error: 'Nomor WhatsApp tidak cocok dengan data pendaftaran peserta.',
+          error: 'Data tidak ditemukan atau nomor WhatsApp tidak cocok.',
         });
       }
     }
@@ -108,6 +163,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         statusPassword: 'Selesai',
       },
     });
+
+    // Reset rate limit jika berhasil
+    if (!isPanitiaReset) {
+      await Promise.all([resetRateLimit(ipKey), resetRateLimit(targetKey)]);
+    }
 
     const successMsg = isForgotReset
       ? 'Password berhasil diperbarui! Silakan login kembali dengan password baru Anda.'

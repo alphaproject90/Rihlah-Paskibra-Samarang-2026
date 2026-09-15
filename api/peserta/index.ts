@@ -1,3 +1,9 @@
+/**
+ * ARCHITECTURE NOTE / KNOWN LIMITATION:
+ * Endpoint ini mengembalikan seluruh data peserta (termasuk waPribadi, waDarurat, riwayatMedis)
+ * secara unpaginated khusus untuk sesi panitia yang valid. Cocok untuk skala kegiatan sekolah saat ini (<500 peserta).
+ * Jika volume peserta bertambah signifikan di event mendatang, terapkan limit/offset pagination atau search filter.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../../lib/prisma.js';
 import { getSession } from '../../lib/api/auth.js';

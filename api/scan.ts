@@ -5,7 +5,7 @@ import { getSession } from '../lib/api/auth.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
-    res.status(405).json({ status: 'error', message: 'Method not allowed' });
+    res.status(405).json({ success: false, status: 'error', error: 'Method not allowed', message: 'Method not allowed' });
     return;
   }
 
@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ⚠️ SECURITY FIX #2 (Tahap 1, dipertahankan): verifikasi sesi panitia sebelum memproses scan
     const session = await getSession(req, 'panitia');
     if (!session || (session as any).role !== 'panitia') {
-      res.status(401).json({ status: 'error', message: 'Akses ditolak. Fitur scanner hanya dapat digunakan oleh Panitia.' });
+      res.status(401).json({ success: false, status: 'error', error: 'Akses ditolak. Fitur scanner hanya dapat digunakan oleh Panitia.', message: 'Akses ditolak. Fitur scanner hanya dapat digunakan oleh Panitia.' });
       return;
     }
 
@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const scanMode = mode === 'pulang' ? 'pulang' : 'berangkat';
 
     if (!targetId) {
-      res.status(400).json({ status: 'error', message: 'ID Peserta tidak boleh kosong.' });
+      res.status(400).json({ success: false, status: 'error', error: 'ID Peserta tidak boleh kosong.', message: 'ID Peserta tidak boleh kosong.' });
       return;
     }
 
@@ -74,7 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return { peserta, waktu: now };
     });
 
-    res.json({
+    res.status(200).json({
+      success: true,
       status: 'success',
       nama: result.peserta.namaLengkap,
       idPeserta: result.peserta.idPeserta,
@@ -83,23 +84,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err: any) {
     if (err?.message === 'NOT_FOUND') {
-      res.json({ status: 'error', message: 'ID Peserta tidak ditemukan dalam sistem.' });
+      res.status(404).json({ success: false, status: 'error', error: 'ID Peserta tidak ditemukan dalam sistem.', message: 'ID Peserta tidak ditemukan dalam sistem.' });
       return;
     }
     if (err?.message === 'STATUS_TIDAK_IKUT') {
-      res.json({ status: 'error', message: 'Peserta terdaftar dengan status TIDAK IKUT kegiatan.' });
+      res.status(422).json({ success: false, status: 'error', error: 'Peserta terdaftar dengan status TIDAK IKUT kegiatan.', message: 'Peserta terdaftar dengan status TIDAK IKUT kegiatan.' });
       return;
     }
     if (err?.message === 'ALREADY_SCANNED_BERANGKAT') {
-      res.json({ status: 'error', message: 'Peserta sudah tercatat presensi Keberangkatan sebelumnya.' });
+      res.status(409).json({ success: false, status: 'error', error: 'Peserta sudah tercatat presensi Keberangkatan sebelumnya.', message: 'Peserta sudah tercatat presensi Keberangkatan sebelumnya.' });
       return;
     }
     if (err?.message === 'ALREADY_SCANNED_PULANG') {
-      res.json({ status: 'error', message: 'Peserta sudah tercatat presensi Kepulangan sebelumnya.' });
+      res.status(409).json({ success: false, status: 'error', error: 'Peserta sudah tercatat presensi Kepulangan sebelumnya.', message: 'Peserta sudah tercatat presensi Kepulangan sebelumnya.' });
       return;
     }
 
     console.error('Error saat proses scan presensi:', err);
-    res.status(500).json({ status: 'error', message: 'Gagal memproses presensi scan.' });
+    res.status(500).json({ success: false, status: 'error', error: 'Gagal memproses presensi scan.', message: 'Gagal memproses presensi scan.' });
   }
 }

@@ -159,13 +159,17 @@ export const apiService = {
       const json = await bacaJson(res);
       if (!isObject(json)) return { success: false, status: 'error', message: `Server error (${res.status}).`, error: `Server error (${res.status}).` };
 
+      const isSuccess = res.ok && Boolean(json.success || json.status === 'success');
+      const id = isObject(json.data) ? String(json.data.idPeserta ?? '') : (json.id ? String(json.id) : undefined);
+      const msg = String(json.message || json.error || (isSuccess ? 'Pendaftaran berhasil disimpan!' : `Pendaftaran gagal (${res.status}).`));
+
       return {
-        success: Boolean(json.success),
-        status: json.success ? 'success' : 'error',
-        id: isObject(json.data) ? String(json.data.idPeserta ?? '') : undefined,
-        data: isObject(json.data) ? { idPeserta: String(json.data.idPeserta ?? '') } : undefined,
-        message: String(json.message || json.error || ''),
-        error: !json.success ? String(json.error || json.message || '') : undefined,
+        success: isSuccess,
+        status: isSuccess ? 'success' : 'error',
+        id,
+        data: id ? { idPeserta: id } : undefined,
+        message: msg,
+        error: !isSuccess ? msg : undefined,
       };
     } catch {
       return { success: false, status: 'error', message: PESAN_KONEKSI, error: PESAN_KONEKSI };
@@ -334,10 +338,10 @@ export const apiService = {
         return { success: false, status: 'error', error: errorMsg, message: errorMsg };
       }
 
-      const isSuccess = Boolean(json.success);
+      const isSuccess = res.ok && Boolean(json.success || json.status === 'success');
       const nama = json.nama ? String(json.nama) : undefined;
       const id = json.idPeserta ? String(json.idPeserta) : idPeserta;
-      const msg = String(json.message || json.error || '');
+      const msg = String(json.message || json.error || (isSuccess ? 'Presensi berhasil dicatat!' : `Presensi gagal (${res.status}).`));
 
       return {
         success: isSuccess,

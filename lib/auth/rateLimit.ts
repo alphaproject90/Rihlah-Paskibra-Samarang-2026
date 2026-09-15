@@ -66,9 +66,13 @@ export async function checkRateLimit(key: string): Promise<RateLimitResult> {
 }
 
 /**
- * Mencatat percobaan gagal. Jika sudah mencapai 5x, kunci selama 15 menit.
+ * Mencatat percobaan gagal. Jika sudah mencapai batas maxAttempts, kunci selama durationSeconds.
  */
-export async function recordFailedAttempt(key: string): Promise<{ locked: boolean; attempts: number }> {
+export async function recordFailedAttempt(
+  key: string,
+  maxAttempts: number = MAX_ATTEMPTS,
+  durationSeconds: number = LOCK_DURATION_SECONDS
+): Promise<{ locked: boolean; attempts: number }> {
   const lockKey = `lock_${key}`;
   const attemptsKey = `attempts_${key}`;
 
@@ -76,10 +80,10 @@ export async function recordFailedAttempt(key: string): Promise<{ locked: boolea
     try {
       const current = (await redisClient.incr(attemptsKey)) as number;
       if (current === 1) {
-        await redisClient.expire(attemptsKey, LOCK_DURATION_SECONDS);
+        await redisClient.expire(attemptsKey, durationSeconds);
       }
-      if (current >= MAX_ATTEMPTS) {
-        await redisClient.set(lockKey, 'true', { ex: LOCK_DURATION_SECONDS });
+      if (current >= maxAttempts) {
+        await redisClient.set(lockKey, 'true', { ex: durationSeconds });
         await redisClient.del(attemptsKey);
         return { locked: true, attempts: current };
       }
@@ -97,8 +101,8 @@ export async function recordFailedAttempt(key: string): Promise<{ locked: boolea
   }
 
   rec.attempts += 1;
-  if (rec.attempts >= MAX_ATTEMPTS) {
-    rec.lockedUntil = now + LOCK_DURATION_SECONDS * 1000;
+  if (rec.attempts >= maxAttempts) {
+    rec.lockedUntil = now + durationSeconds * 1000;
     memoryStore.set(key, rec);
     return { locked: true, attempts: rec.attempts };
   }
