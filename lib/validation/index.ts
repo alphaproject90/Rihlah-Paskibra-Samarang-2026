@@ -76,13 +76,18 @@ export const GantiPasswordPesertaSchema = z.object({
   }),
 });
 
-export const LoginPanitiaSchema = z.object({
-  pin: z.string().min(4, { message: 'PIN panitia minimal 4 digit.' }),
-});
+export const LoginPanitiaSchema = z
+  .object({
+    username: z.string().min(1, { message: 'Username panitia wajib diisi.' }).optional(),
+    password: z.string().min(1, { message: 'Password panitia wajib diisi.' }).optional(),
+    pin: z.string().min(4, { message: 'PIN panitia minimal 4 digit.' }).optional(),
+  })
+  .refine((data) => (Boolean(data.username) && Boolean(data.password)) || Boolean(data.pin), {
+    message: 'Username dan password panitia wajib diisi.',
+  });
 
 export const ScanQrSchema = z.object({
   idPeserta: z.string().min(1, { message: 'ID Peserta tidak boleh kosong.' }),
-  mode: z.enum(['berangkat', 'pulang'], {
-    errorMap: () => ({ message: 'Mode presensi harus "berangkat" atau "pulang".' }),
-  }),
+  mode: z.enum(['berangkat', 'pulang']).optional(),
+  keterangan: z.string().optional(),
 });

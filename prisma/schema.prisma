@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Peserta {
@@ -34,4 +35,15 @@ model LogScan {
   nama       String
   keterangan String   // "Scan Keberangkatan" | "Scan Kepulangan"
   peserta    Peserta  @relation(fields: [idPeserta], references: [idPeserta])
+}
+
+// Model baru untuk mencatat aktivitas sistem
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String   // "INFO" | "WARN" | "ERROR" | "CRITICAL"
+  action    String   // Contoh: "LOGIN_FAILED", "SCAN_INVALID", "API_ERROR"
+  actorId   String?  // ID Peserta atau Panitia yang melakukan aksi (jika ada)
+  details   Json?    // Menyimpan data dinamis (pesan error, payload)
+  ipAddress String?  // Menyimpan IP untuk melacak spammer/hacker
+  createdAt DateTime @default(now())
 }

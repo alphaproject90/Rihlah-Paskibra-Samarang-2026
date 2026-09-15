@@ -10,9 +10,12 @@ export type HalamanType =
   | 'login-panitia'
   | 'scanner';
 
+// Shape data peserta yang dipakai oleh seluruh UI (Dashboard, Daftar Peserta, dsb.)
+// Catatan field: nama (bukan namaLengkap) — mapping dilakukan di apiService.ts
 export interface PesertaRihlah {
   id: string;
   nama: string;
+  namaLengkap?: string; // alias pendukung dari response backend agar tidak undefined
   jk: 'Laki-laki' | 'Perempuan';
   unit: string;
   partisipasi: 'Ikut' | 'Tidak Ikut';
@@ -23,8 +26,6 @@ export interface PesertaRihlah {
   waktuBerangkat?: string;
   waktuPulang?: string;
   username?: string;
-  passwordHash?: string;
-  passwordSalt?: string;
   statusPassword?: 'Wajib Ganti' | 'Selesai' | '-';
 }
 
@@ -33,7 +34,12 @@ export interface StatsRihlah {
   tidakIkut: number;
   berangkat: number;
   pulang: number;
+  ikut?: number;
+  sudahBerangkat?: number;
+  sudahPulang?: number;
 }
+
+export type StatistikData = StatsRihlah;
 
 export interface FormPendaftaran {
   nama: string;
@@ -55,6 +61,56 @@ export interface NotifState {
   message: string;
   type: 'info' | 'success' | 'error';
 }
+
+// ─── API Response Types ──────────────────────────────────────────────────────
+// Tipe-tipe ini menggantikan 'any' di apiService.ts agar type-safety terjaga
+// dari layer HTTP response hingga ke komponen UI.
+
+/** Interface generik standar untuk API */
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+  status?: 'success' | 'error'; // properti penolong untuk kompatibilitas frontend
+}
+
+/** Response generik untuk operasi yang hanya perlu status + pesan */
+export interface SimpleApiResponse extends ApiResponse<null> {
+  status: 'success' | 'error';
+  message?: string;
+}
+
+/** Response login peserta — berisi data minimal untuk state dashboard */
+export interface LoginPesertaResponse extends ApiResponse<PesertaRihlah> {
+  status: 'success' | 'error';
+  message?: string;
+  data?: PesertaRihlah;
+}
+
+/** Response dari endpoint /api/register */
+export interface RegisterApiResponse extends ApiResponse<{ idPeserta?: string }> {
+  status: 'success' | 'error';
+  id?: string;
+  message?: string;
+}
+
+/** Data hasil presensi scan */
+export interface ScanResultData {
+  nama?: string;
+  idPeserta?: string;
+}
+
+/** Response dari endpoint /api/scan */
+export interface ScanApiResponse extends ApiResponse<ScanResultData> {
+  status: 'success' | 'error';
+  nama?: string;
+  idPeserta?: string;
+  message?: string;
+  unauthorized?: boolean;
+}
+
+
 
 // Tipe pendukung / interoperabilitas
 export type TingkatPeserta = 'Capas' | 'Paskibra Inti' | 'Purna' | 'Panitia' | 'Pembina';

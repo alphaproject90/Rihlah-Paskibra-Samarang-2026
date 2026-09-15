@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { HalamanType, NotifState, PesertaRihlah, StatsRihlah, FormPendaftaran } from './types';
 import { apiService } from './services/apiService';
-import { INITIAL_PESERTA_RIHLAH } from './data/rihlahData';
+import { STRONG_PASSWORD_REGEX } from '../lib/validation';
 import { KopSurat } from './components/KopSurat';
 import { HeaderMerah } from './components/HeaderMerah';
 import { ToastNotif } from './components/ToastNotif';
@@ -27,20 +27,18 @@ const HALAMAN_VALID: HalamanType[] = [
   'scanner'
 ];
 
+const STATS_KOSONG: StatsRihlah = { total: 0, tidakIkut: 0, berangkat: 0, pulang: 0 };
+
 export const App: React.FC = () => {
   const [halamanAktif, setHalamanAktif] = useState<HalamanType>('home');
   const [isPanitia, setIsPanitia] = useState<boolean>(false);
   const [scanMode, setScanMode] = useState<'berangkat' | 'pulang'>('berangkat');
   const [dashboardPeserta, setDashboardPeserta] = useState<PesertaRihlah | null>(null);
 
-  const [stats, setStats] = useState<StatsRihlah>({
-    total: 3,
-    tidakIkut: 1,
-    berangkat: 2,
-    pulang: 1
-  });
-
-  const [pesertaList, setPesertaList] = useState<PesertaRihlah[]>(INITIAL_PESERTA_RIHLAH);
+  // Mulai dari nol, bukan angka contoh. Angka palsu di dashboard panitia
+  // lebih berbahaya daripada angka kosong.
+  const [stats, setStats] = useState<StatsRihlah>(STATS_KOSONG);
+  const [pesertaList, setPesertaList] = useState<PesertaRihlah[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const [notif, setNotif] = useState<NotifState>({
@@ -56,25 +54,49 @@ export const App: React.FC = () => {
     }, 3500);
   }, []);
 
-  // Muat data statistik
-  const muatStatistik = useCallback(async () => {
-    try {
-      const dataStats = await apiService.getStatistik();
-      if (dataStats) setStats(dataStats);
-    } catch {
-      // ignore
-    }
+  const navigasiKeRaw = useCallback((hal: HalamanType) => {
+    if (!HALAMAN_VALID.includes(hal)) return;
+    setHalamanAktif(hal);
+    window.location.hash = hal;
   }, []);
 
-  // Muat data peserta
-  const muatPeserta = useCallback(async () => {
-    try {
-      const dataList = await apiService.getAllPeserta();
-      if (dataList && dataList.length > 0) setPesertaList(dataList);
-    } catch {
-      // ignore
+  /** Sesi panitia ditolak server: bersihkan state lokal, jangan biarkan UI "seolah login". */
+  const akhiriSesiPanitia = useCallback(
+    (pesan: string) => {
+      setIsPanitia(false);
+      setPesertaList([]);
+      tampilkanNotif(pesan, 'error');
+      navigasiKeRaw('login-panitia');
+    },
+    [tampilkanNotif, navigasiKeRaw]
+  );
+
+  // Statistik bersifat publik (endpoint /api/statistik tidak butuh auth)
+  const muatStatistik = useCallback(async () => {
+    const hasil = await apiService.getStatistik();
+    if ((hasil.success || hasil.ok || hasil.status === 'success') && hasil.data) {
+      setStats(hasil.data);
+    } else {
+      setStats(STATS_KOSONG);
+      tampilkanNotif(hasil.message || hasil.error || 'Gagal memuat statistik.', 'error');
     }
-  }, []);
+  }, [tampilkanNotif]);
+
+  // Data peserta HANYA untuk panitia — endpoint /api/peserta menolak tanpa sesi panitia.
+  const muatPeserta = useCallback(async () => {
+    const hasil = await apiService.getAllPeserta();
+
+    if (hasil.ok) {
+      setPesertaList(hasil.data);
+      return;
+    }
+    if (hasil.unauthorized) {
+      akhiriSesiPanitia(hasil.message || 'Sesi panitia berakhir. Silakan login ulang.');
+      return;
+    }
+    setPesertaList([]);
+    tampilkanNotif(hasil.message || 'Gagal memuat data peserta.', 'error');
+  }, [tampilkanNotif, akhiriSesiPanitia]);
 
   // Sinkronisasi rute URL hash
   const sinkronkanDariHash = useCallback(() => {
@@ -89,6 +111,10 @@ export const App: React.FC = () => {
       setHalamanAktif('home');
       return;
     }
+    if (target === 'peserta' && !isPanitia) {
+      setHalamanAktif('login-panitia');
+      return;
+    }
     setHalamanAktif(target);
   }, [dashboardPeserta, isPanitia, scanMode]);
 
@@ -96,17 +122,30 @@ export const App: React.FC = () => {
     sinkronkanDariHash();
     window.addEventListener('hashchange', sinkronkanDariHash);
     muatStatistik();
-    muatPeserta();
 
     return () => {
       window.removeEventListener('hashchange', sinkronkanDariHash);
     };
-  }, [sinkronkanDariHash, muatStatistik, muatPeserta]);
+  }, [sinkronkanDariHash, muatStatistik]);
 
   const navigasiKe = (hal: HalamanType) => {
     if (!HALAMAN_VALID.includes(hal)) return;
-    setHalamanAktif(hal);
-    window.location.hash = hal;
+
+    // Guard clause: Scanner hanya bisa diakses jika panitia sudah login (terautentikasi)
+    if (hal === 'scanner' && !isPanitia) {
+      tampilkanNotif('Fitur scanner hanya dapat diakses oleh panitia terotentikasi.', 'error');
+      navigasiKeRaw('login-panitia');
+      return;
+    }
+
+    // Daftar peserta butuh sesi panitia — jangan buka halamannya lalu gagal diam-diam.
+    if (hal === 'peserta' && !isPanitia) {
+      tampilkanNotif('Data peserta hanya dapat diakses oleh panitia.', 'error');
+      navigasiKeRaw('login-panitia');
+      return;
+    }
+
+    navigasiKeRaw(hal);
 
     if (hal === 'peserta') {
       muatStatistik();
@@ -131,44 +170,38 @@ export const App: React.FC = () => {
     setLoading(true);
     try {
       const res = await apiService.registerPeserta(form);
-      if (res.status === 'success') {
+      if (res.success || res.status === 'success') {
         tampilkanNotif('Pendaftaran berhasil disimpan!', 'success');
         muatStatistik();
-        muatPeserta();
-        return res;
-      } else {
-        tampilkanNotif(res.message || 'Gagal mendaftar.', 'error');
+        if (isPanitia) muatPeserta();
         return res;
       }
-    } catch {
-      const msg = 'Terjadi kesalahan jaringan saat mendaftar.';
-      tampilkanNotif(msg, 'error');
-      return { status: 'error', message: msg };
+      tampilkanNotif(res.message || res.error || 'Gagal mendaftar.', 'error');
+      return res;
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Login Peserta (Langsung masuk ke dashboard, tidak dipaksa ganti password)
+  // 2. Login Peserta
   const handleLoginPeserta = async (username: string, pass: string) => {
     setLoading(true);
     try {
       const res = await apiService.loginPeserta(username, pass);
-      if (res.status === 'success') {
+      if ((res.success || res.status === 'success') && res.data) {
         setDashboardPeserta(res.data);
-        tampilkanNotif(`Selamat datang, ${res.data.nama}!`, 'success');
+        const namaTampil = res.data.nama || res.data.namaLengkap || 'Peserta';
+        tampilkanNotif(`Selamat datang, ${namaTampil}!`, 'success');
         navigasiKe('dashboard-peserta');
       } else {
-        tampilkanNotif(res.message || 'Username atau Password salah.', 'error');
+        tampilkanNotif(res.message || res.error || 'Username atau Password salah.', 'error');
       }
-    } catch {
-      tampilkanNotif('Gagal memverifikasi login.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. Reset / Ganti Password (Khusus Jika Peserta Lupa Password)
+  // 3. Reset / Ganti Password
   const handleSubmitGantiPassword = async (
     identifier: string,
     noWa: string,
@@ -187,8 +220,7 @@ export const App: React.FC = () => {
       tampilkanNotif('Konfirmasi password tidak cocok!', 'error');
       return;
     }
-    const polaPasswordKuat = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-    if (!polaPasswordKuat.test(newPass)) {
+    if (!STRONG_PASSWORD_REGEX.test(newPass)) {
       tampilkanNotif('Password minimal 8 karakter kombinasi huruf besar, kecil, angka, dan simbol.', 'error');
       return;
     }
@@ -196,55 +228,67 @@ export const App: React.FC = () => {
     setLoading(true);
     try {
       const res = await apiService.resetPasswordLupa(identifier.trim(), noWa.trim(), newPass);
-      if (res.status === 'success') {
+      if (res.success || res.status === 'success') {
         tampilkanNotif(res.message || 'Password berhasil diperbarui! Silakan login kembali.', 'success');
         navigasiKe('login-peserta');
       } else {
-        tampilkanNotif(res.message || 'Gagal mengubah password.', 'error');
+        tampilkanNotif(res.message || res.error || 'Gagal mengubah password.', 'error');
       }
-    } catch {
-      tampilkanNotif('Terjadi kesalahan jaringan saat mengubah password.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeluarPeserta = () => {
+  const handleKeluarPeserta = async () => {
+    await apiService.logout();
+    // Kosongkan seluruh state terkait sesi secara eksplisit
     setDashboardPeserta(null);
+    setIsPanitia(false);
+    setPesertaList([]);
+    setScanMode('berangkat');
     tampilkanNotif('Anda telah keluar dari akun.', 'info');
     navigasiKe('home');
   };
 
-  // 4. Login Panitia (PIN)
-  const handleLoginPin = async (pin: string) => {
+  // 4. Login Panitia (Username & Password)
+  const handleLoginPanitia = async (username: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const valid = await apiService.verifikasiPin(pin);
+      const { valid, message } = await apiService.loginPanitia(username, password);
       if (valid) {
         setIsPanitia(true);
         tampilkanNotif('Akses panitia berhasil diverifikasi!', 'success');
-        muatStatistik();
+        await muatStatistik();
+        await muatPeserta();
         return true;
-      } else {
-        tampilkanNotif('PIN Panitia salah. Akses ditolak.', 'error');
-        return false;
       }
-    } catch {
-      tampilkanNotif('Gagal memverifikasi PIN.', 'error');
+      tampilkanNotif(message || 'Username atau password panitia salah.', 'error');
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogoutPanitia = () => {
+  const handleLogoutPanitia = async () => {
+    // Cookie sesi wajib dihapus di server — tanpa ini token tetap sah 24 jam
+    // meski UI sudah kelihatan logout.
+    await apiService.logout();
     setIsPanitia(false);
+    setPesertaList([]);
+    // Bersihkan state peserta juga — mencegah data bocor ke sesi selanjutnya
+    setDashboardPeserta(null);
     tampilkanNotif('Sesi panitia diakhiri.', 'info');
-    navigasiKe('home');
+    navigasiKeRaw('home');
   };
 
   // 5. Buka Scanner
   const handleBukaScanner = (mode: 'berangkat' | 'pulang') => {
+    // Guard clause: pastikan rute hanya bisa diakses jika panitia sudah login (valid)
+    if (!isPanitia) {
+      tampilkanNotif('Fitur scanner hanya dapat diakses oleh panitia terotentikasi.', 'error');
+      navigasiKeRaw('login-panitia');
+      return;
+    }
     setScanMode(mode);
     navigasiKe('scanner');
   };
@@ -254,16 +298,21 @@ export const App: React.FC = () => {
     setLoading(true);
     try {
       const res = await apiService.prosesScan(idPeserta, scanMode);
-      if (res.status === 'success') {
+
+      if (res.unauthorized) {
+        akhiriSesiPanitia(res.message || res.error || 'Sesi panitia berakhir. Silakan login ulang.');
+        return;
+      }
+      if (res.success || res.status === 'success') {
         const sesi = scanMode === 'berangkat' ? 'Keberangkatan' : 'Kepulangan';
-        tampilkanNotif(`Presensi ${sesi} Berhasil: ${res.nama} (${idPeserta})`, 'success');
+        // res.nama sekarang tersedia — prosesScan sudah meneruskannya dari server
+        const namaTampil = res.data?.nama || res.nama || idPeserta;
+        tampilkanNotif(`Presensi ${sesi} Berhasil: ${namaTampil} (${idPeserta})`, 'success');
         muatStatistik();
         muatPeserta();
       } else {
-        tampilkanNotif(res.message || 'Scan gagal diproses.', 'error');
+        tampilkanNotif(res.message || res.error || 'Scan gagal diproses.', 'error');
       }
-    } catch {
-      tampilkanNotif('Terjadi gangguan jaringan saat memproses scan.', 'error');
     } finally {
       setLoading(false);
     }
@@ -323,7 +372,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {halamanAktif === 'peserta' && (
+          {halamanAktif === 'peserta' && isPanitia && (
             <PesertaStatistikView
               stats={stats}
               pesertaList={pesertaList}
@@ -335,7 +384,7 @@ export const App: React.FC = () => {
             <LoginPanitiaView
               isPanitia={isPanitia}
               stats={stats}
-              onLoginPin={handleLoginPin}
+              onLoginPanitia={handleLoginPanitia}
               onLogout={handleLogoutPanitia}
               onRefresh={muatStatistik}
               onBukaScanner={handleBukaScanner}

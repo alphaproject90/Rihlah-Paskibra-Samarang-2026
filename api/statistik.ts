@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/prisma.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
-    res.status(405).json({ status: 'error', message: 'Method not allowed' });
+    res.status(405).json({ success: false, message: 'Method not allowed' });
     return;
   }
 
@@ -16,15 +16,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       prisma.peserta.count({ where: { waktuPulang: { not: null } } }),
     ]);
 
+    // Response shape konsisten — data dibungkus dalam key 'data'
+    // sesuai yang diharapkan apiService.ts: json.data as StatsRihlah
     res.json({
-      status: 'success',
-      total: totalIkut,
-      tidakIkut: totalTidakIkut,
-      berangkat: totalBerangkat,
-      pulang: totalPulang,
+      success: true,
+      data: {
+        total: totalIkut,
+        tidakIkut: totalTidakIkut,
+        berangkat: totalBerangkat,
+        pulang: totalPulang,
+        ikut: totalIkut,
+        sudahBerangkat: totalBerangkat,
+        sudahPulang: totalPulang,
+      },
     });
   } catch (err) {
     console.error('Error saat getStatistik:', err);
-    res.status(500).json({ status: 'error', message: 'Gagal memuat statistik.' });
+    res.status(500).json({ success: false, message: 'Gagal memuat statistik.' });
   }
 }
+

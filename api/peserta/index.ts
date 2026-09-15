@@ -1,25 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../../lib/prisma';
-import { getSession } from '../../lib/api/auth';
+import { prisma } from '../../lib/prisma.js';
+import { getSession } from '../../lib/api/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    res.status(405).json({ status: 'error', message: 'Method not allowed' });
-    return;
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method Not Allowed' });
+
+  // Verifikasi sesi panitia sebelum memberikan akses data
+  const session = await getSession(req, 'panitia');
+  if (!session || (session as { role?: string }).role !== 'panitia') {
+    return res.status(401).json({ error: 'Unauthorized: Sesi panitia tidak valid' });
   }
 
   try {
-    const session = await getSession(req, 'panitia');
-
-    // ⚠️ SECURITY FIX #1 (Tahap 1, dipertahankan): tolak jika sesi tidak valid atau role bukan panitia
-    if (!session || (session as any).role !== 'panitia') {
-      res.status(401).json({ status: 'error', message: 'Akses ditolak. Sesi panitia tidak valid.' });
-      return;
-    }
-
-    // Kolom passwordHash tidak pernah di-serialize
-    const list = await prisma.peserta.findMany({
+    const peserta = await prisma.peserta.findMany({
       select: {
         idPeserta: true,
         namaLengkap: true,
@@ -36,28 +29,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         statusPassword: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { namaLengkap: 'asc' },
     });
 
-    const formatted = list.map((p) => ({
-      id: p.idPeserta,
-      nama: p.namaLengkap,
-      jk: p.jenisKelamin,
-      unit: p.asalSekolah,
-      partisipasi: p.partisipasi,
-      alasan: p.alasanTidakIkut || '',
-      waPeserta: p.waPribadi || '',
-      waDarurat: p.waDarurat || '',
-      medis: p.riwayatMedis || '',
-      waktuBerangkat: p.waktuBerangkat ? p.waktuBerangkat.toLocaleString('id-ID') : '',
-      waktuPulang: p.waktuPulang ? p.waktuPulang.toLocaleString('id-ID') : '',
-      username: p.username || '',
-      statusPassword: p.statusPassword || 'Selesai',
+    const formatted = peserta.map((p) => ({
+      ...p,
+      waktuBerangkat: p.waktuBerangkat ? p.waktuBerangkat.toLocaleString('id-ID') : null,
+      waktuPulang: p.waktuPulang ? p.waktuPulang.toLocaleString('id-ID') : null,
     }));
 
-    res.json({ status: 'success', data: formatted });
-  } catch (err) {
-    console.error('Error saat getPeserta:', err);
-    res.status(500).json({ status: 'error', message: 'Gagal memuat data peserta.' });
+    return res.status(200).json({ success: true, data: formatted });
+  } catch (error) {
+    console.error('Error fetching peserta list:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
