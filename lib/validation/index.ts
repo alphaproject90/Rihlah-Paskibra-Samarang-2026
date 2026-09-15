@@ -76,15 +76,10 @@ export const GantiPasswordPesertaSchema = z.object({
   }),
 });
 
-export const LoginPanitiaSchema = z
-  .object({
-    username: z.string().min(1, { message: 'Username panitia wajib diisi.' }).optional(),
-    password: z.string().min(1, { message: 'Password panitia wajib diisi.' }).optional(),
-    pin: z.string().min(4, { message: 'PIN panitia minimal 4 digit.' }).optional(),
-  })
-  .refine((data) => (Boolean(data.username) && Boolean(data.password)) || Boolean(data.pin), {
-    message: 'Username dan password panitia wajib diisi.',
-  });
+export const LoginPanitiaSchema = z.object({
+  username: z.string().min(1, { message: 'Username panitia wajib diisi.' }),
+  password: z.string().min(1, { message: 'Password panitia wajib diisi.' }),
+});
 
 export const ScanQrSchema = z.object({
   idPeserta: z.string().min(1, { message: 'ID Peserta tidak boleh kosong.' }),

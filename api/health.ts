@@ -1,3 +1,8 @@
+/**
+ * ARCHITECTURE NOTE:
+ * Endpoint publik (read-only, tanpa session auth) untuk memantau status kesehatan server,
+ * koneksi basis data Prisma, dan jumlah total peserta terdaftar.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma.js';
 

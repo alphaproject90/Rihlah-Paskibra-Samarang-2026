@@ -1,3 +1,8 @@
+/**
+ * ARCHITECTURE NOTE:
+ * Endpoint publik (read-only, tanpa session auth) untuk menyajikan rekapitulasi jumlah peserta
+ * dan status presensi pada dashboard utama tanpa mengekspos data PII peserta.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma.js';
 
