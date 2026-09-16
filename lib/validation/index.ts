@@ -71,6 +71,8 @@ export const GantiPasswordPesertaSchema = z.object({
   oldPassword: z.string().optional(),
   identifier: z.string().optional(),
   noWa: z.string().optional(),
+  unit: z.string().optional(),
+  asalSekolah: z.string().optional(),
   newPassword: z.string().regex(STRONG_PASSWORD_REGEX, {
     message: 'Password baru minimal 8 karakter kombinasi huruf besar, kecil, angka, dan simbol.',
   }),
