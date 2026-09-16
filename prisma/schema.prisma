@@ -65,3 +65,10 @@ model Dokumen {
   @@index([scope])
   @@index([idPeserta])
 }
+
+model Pengaturan {
+  id                 String   @id @default("singleton")
+  pendaftaranDibuka  Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+  updatedOleh        String?  // username/role panitia yang terakhir mengubah, untuk audit
+}

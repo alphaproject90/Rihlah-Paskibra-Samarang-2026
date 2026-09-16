@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma.js';
 import { getSession } from '../../lib/api/auth.js';
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../lib/auth/rateLimit.js';
 import { STRONG_PASSWORD_REGEX, GantiPasswordPesertaSchema } from '../../lib/validation/index.js';
+import { logSystem } from '../../lib/logger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
@@ -92,11 +93,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!targetPeserta) {
       if (isForgotReset && !isPanitiaReset) {
         // Anti-enumeration: Catat gagal dan samakan respons dengan WA mismatch
-        const [ipFail] = await Promise.all([
+        const [ipFail, targetFail] = await Promise.all([
           recordFailedAttempt(ipKey),
           recordFailedAttempt(targetKey),
         ]);
-        if (ipFail.locked) {
+        if (ipFail.locked || targetFail.locked) {
+          logSystem({
+            level: 'WARN',
+            action: 'GANTI_PASSWORD_LOCKED',
+            details: { target: idTarget },
+            ipAddress: ip,
+          });
           return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
         }
         return res.status(400).json({ error: 'Data tidak ditemukan atau nomor WhatsApp tidak cocok.' });
@@ -114,11 +121,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (targetPeserta.passwordHash) {
         const isValid = await bcrypt.compare(oldPassword, targetPeserta.passwordHash);
         if (!isValid) {
-          const [ipFail] = await Promise.all([
+          const [ipFail, targetFail] = await Promise.all([
             recordFailedAttempt(ipKey),
             recordFailedAttempt(targetKey),
           ]);
-          if (ipFail.locked) {
+          if (ipFail.locked || targetFail.locked) {
+            logSystem({
+              level: 'WARN',
+              action: 'GANTI_PASSWORD_LOCKED',
+              details: { target: idTarget },
+              ipAddress: ip,
+            });
             return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
           }
           return res.status(401).json({ error: 'Password lama salah.' });
@@ -140,11 +153,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!isWaMatch) {
         // Anti-enumeration: pesan identik dengan user not found
-        const [ipFail] = await Promise.all([
+        const [ipFail, targetFail] = await Promise.all([
           recordFailedAttempt(ipKey),
           recordFailedAttempt(targetKey),
         ]);
-        if (ipFail.locked) {
+        if (ipFail.locked || targetFail.locked) {
+          logSystem({
+            level: 'WARN',
+            action: 'GANTI_PASSWORD_LOCKED',
+            details: { target: idTarget },
+            ipAddress: ip,
+          });
           return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
         }
         return res.status(400).json({

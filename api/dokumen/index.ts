@@ -105,6 +105,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         where: { id },
       });
 
+      logSystem({
+        level: 'INFO',
+        action: 'DOKUMEN_DELETED',
+        actorId: (panitiaSession as any).role || 'panitia',
+        details: {
+          id,
+          judul: dokumen.judul,
+          scope: dokumen.scope,
+          idPeserta: dokumen.idPeserta,
+        },
+      });
+
       return res.status(200).json({ success: true, message: 'Dokumen berhasil dihapus.' });
     } catch (error) {
       console.error('Error saat menghapus dokumen:', error);

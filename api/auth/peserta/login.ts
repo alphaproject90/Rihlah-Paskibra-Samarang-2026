@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { signToken, SESSION_COOKIE } from '../../../lib/api/auth.js';
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit.js';
 import { LoginPesertaSchema } from '../../../lib/validation/index.js';
+import { logSystem } from '../../../lib/logger.js';
 
 // Cookie bersifat Secure hanya di production (HTTPS)
 const isProduction = process.env.NODE_ENV === 'production';
@@ -39,6 +40,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!peserta || !peserta.passwordHash) {
       // Catat kegagalan pada kedua key
       await Promise.all([recordFailedAttempt(ipKey), recordFailedAttempt(usernameKey)]);
+      logSystem({
+        level: 'WARN',
+        action: 'PESERTA_LOGIN_FAILED',
+        details: { username },
+        ipAddress: ip,
+      });
       return res.status(401).json({ error: 'Kredensial tidak valid' });
     }
 
@@ -49,8 +56,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         recordFailedAttempt(usernameKey),
       ]);
       if (ipResult.locked) {
+        logSystem({
+          level: 'WARN',
+          action: 'PESERTA_LOGIN_LOCKED',
+          details: { username },
+          ipAddress: ip,
+        });
         return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
       }
+      logSystem({
+        level: 'WARN',
+        action: 'PESERTA_LOGIN_FAILED',
+        details: { username },
+        ipAddress: ip,
+      });
       return res.status(401).json({ error: 'Kredensial tidak valid' });
     }
 

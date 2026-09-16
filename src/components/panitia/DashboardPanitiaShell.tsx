@@ -9,15 +9,14 @@ import {
   Clock, 
   UserCheck, 
   UserX,
-  FileText,
-  Activity,
-  Settings,
   Sparkles
 } from 'lucide-react';
 import { PanitiaTabType } from './types';
 import { SidebarPanitia } from './SidebarPanitia';
 import { RekapExportView } from './RekapExportView';
 import { DokumenPdfView } from './DokumenPdfView';
+import { LogSistemView } from './LogSistemView';
+import { PengaturanView } from './PengaturanView';
 import { StatsRihlah, PesertaRihlah } from '../../types';
 
 interface DashboardPanitiaShellProps {
@@ -429,44 +428,20 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
             />
           )}
 
-          {/* TAB 5: LOG SISTEM (Fase D Placeholder) */}
+          {/* TAB 5: LOG SISTEM (Fase D) */}
           {panitiaTab === 'log' && (
-            <div className="max-w-4xl bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center mx-auto shadow-inner">
-                <Activity className="w-7 h-7" />
-              </div>
-              <div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800 mb-2">
-                  Siap untuk Fase D
-                </span>
-                <h2 className="text-lg font-black text-slate-900">
-                  Audit Trail &amp; Log Sistem
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
-                  Tabel pemantauan SystemLog dengan level filter (INFO, WARN, ERROR, CRITICAL) dan rincian payload JSON akan diintegrasikan di tab ini pada Fase D.
-                </p>
-              </div>
-            </div>
+            <LogSistemView
+              tampilkanNotif={tampilkanNotif}
+            />
           )}
 
-          {/* TAB 6: PENGATURAN (Fase D Placeholder) */}
+          {/* TAB 6: PENGATURAN (Fase D) */}
           {panitiaTab === 'pengaturan' && (
-            <div className="max-w-4xl bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-inner">
-                <Settings className="w-7 h-7" />
-              </div>
-              <div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 mb-2">
-                  Siap untuk Fase D
-                </span>
-                <h2 className="text-lg font-black text-slate-900">
-                  Pengaturan Sistem &amp; Akun
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
-                  Tombol kontrol pendaftaran (buka/tutup pendaftaran) serta form ganti password mandiri panitia akan diintegrasikan di tab ini pada Fase D.
-                </p>
-              </div>
-            </div>
+            <PengaturanView
+              stats={stats}
+              onRefresh={onRefresh}
+              tampilkanNotif={tampilkanNotif}
+            />
           )}
         </main>
       </div>

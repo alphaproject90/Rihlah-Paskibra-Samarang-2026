@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { signToken, SESSION_COOKIE } from '../../../lib/api/auth.js';
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit.js';
 import { LoginPanitiaSchema } from '../../../lib/validation/index.js';
+import { logSystem } from '../../../lib/logger.js';
 
 // Cookie bersifat Secure hanya di production (HTTPS) — biarkan bekerja di localhost HTTP
 const isProduction = process.env.NODE_ENV === 'production';
@@ -34,7 +35,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (username !== process.env.PANITIA_USERNAME) {
-      await recordFailedAttempt(rateLimitKey);
+      const { locked } = await recordFailedAttempt(rateLimitKey);
+      if (locked) {
+        logSystem({ level: 'CRITICAL', action: 'PANITIA_LOGIN_LOCKED', ipAddress: ip });
+        return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
+      }
+      logSystem({
+        level: 'WARN',
+        action: 'PANITIA_LOGIN_FAILED',
+        details: { reason: 'invalid_username' },
+        ipAddress: ip,
+      });
       // Pesan generik — jangan beritahu apakah username atau password yang salah
       return res.status(401).json({ error: 'Kredensial tidak valid' });
     }
@@ -43,8 +54,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isValid) {
       const { locked } = await recordFailedAttempt(rateLimitKey);
       if (locked) {
+        logSystem({ level: 'CRITICAL', action: 'PANITIA_LOGIN_LOCKED', ipAddress: ip });
         return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
       }
+      logSystem({
+        level: 'WARN',
+        action: 'PANITIA_LOGIN_FAILED',
+        details: { reason: 'invalid_password' },
+        ipAddress: ip,
+      });
       return res.status(401).json({ error: 'Kredensial tidak valid' });
     }
 

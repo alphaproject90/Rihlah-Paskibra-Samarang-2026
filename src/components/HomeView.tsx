@@ -3,9 +3,10 @@ import { HalamanType } from '../types';
 
 interface HomeViewProps {
   onNavigasi: (hal: HalamanType) => void;
+  pendaftaranDibuka?: boolean;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({ onNavigasi }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ onNavigasi, pendaftaranDibuka = true }) => {
   return (
     <div className="space-y-4 my-auto py-6">
       {/* Tombol 1: Daftar */}
@@ -21,8 +22,17 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigasi }) => {
             </svg>
           </div>
           <div className="text-left">
-            <div className="text-lg leading-tight">Daftar Sebagai Peserta</div>
-            <div className="text-xs text-red-100 font-normal">Konfirmasi Kehadiran Rihlah</div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg leading-tight">Daftar Sebagai Peserta</span>
+              {!pendaftaranDibuka && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-950/40 text-rose-100 border border-white/30 tracking-wider">
+                  DITUTUP
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-red-100 font-normal">
+              {!pendaftaranDibuka ? 'Pendaftaran ditutup oleh panitia' : 'Konfirmasi Kehadiran Rihlah'}
+            </div>
           </div>
         </div>
         <svg className="w-5 h-5 opacity-70 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">

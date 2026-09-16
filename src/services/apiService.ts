@@ -4,6 +4,7 @@ import {
   StatsRihlah,
   StatistikData,
   DokumenRihlah,
+  SystemLogEntry,
   ApiResponse,
   LoginPesertaResponse,
   RegisterApiResponse,
@@ -398,6 +399,64 @@ export const apiService = {
         return { ok: false, message: errorMsg };
       }
       return { ok: true, message: String(json.message || 'Dokumen berhasil dihapus') };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  getSystemLog: async (params?: {
+    level?: string;
+    cursor?: string;
+    limit?: number;
+  }): Promise<{ ok: boolean; data: SystemLogEntry[]; nextCursor: string | null; message?: string; unauthorized?: boolean }> => {
+    try {
+      const query = new URLSearchParams();
+      if (params?.level && params.level !== 'Semua') query.set('level', params.level);
+      if (params?.cursor) query.set('cursor', params.cursor);
+      if (params?.limit) query.set('limit', String(params.limit));
+
+      const qs = query.toString();
+      const res = await fetch(`/api/systemlog${qs ? `?${qs}` : ''}`);
+      const json = await bacaJson(res);
+
+      if (res.status === 401) {
+        return { ok: false, data: [], nextCursor: null, unauthorized: true, message: 'Sesi berakhir atau tidak valid.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success || !Array.isArray(json.data)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat log sistem (${res.status})`;
+        return { ok: false, data: [], nextCursor: null, message: errorMsg };
+      }
+      return {
+        ok: true,
+        data: json.data as SystemLogEntry[],
+        nextCursor: typeof json.nextCursor === 'string' ? json.nextCursor : null,
+      };
+    } catch {
+      return { ok: false, data: [], nextCursor: null, message: PESAN_KONEKSI };
+    }
+  },
+
+  updatePengaturan: async (pendaftaranDibuka: boolean): Promise<{ ok: boolean; message?: string; unauthorized?: boolean }> => {
+    try {
+      const res = await fetch('/api/statistik', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendaftaranDibuka }),
+      });
+      const json = await bacaJson(res);
+
+      if (res.status === 401) {
+        return { ok: false, unauthorized: true, message: 'Sesi panitia berakhir. Silakan login ulang.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memperbarui pengaturan (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: String(json.message || 'Pengaturan berhasil diperbarui.') };
     } catch {
       return { ok: false, message: PESAN_KONEKSI };
     }
