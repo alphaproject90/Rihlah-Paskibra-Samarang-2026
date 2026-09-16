@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PanitiaTabType } from './types';
 import { SidebarPanitia } from './SidebarPanitia';
+import { RekapExportView } from './RekapExportView';
 import { StatsRihlah, PesertaRihlah } from '../../types';
 
 interface DashboardPanitiaShellProps {
@@ -25,6 +26,8 @@ interface DashboardPanitiaShellProps {
   stats: StatsRihlah;
   pesertaList: PesertaRihlah[];
   onRefresh: () => void;
+  onRefreshPeserta: () => void | Promise<void>;
+  tampilkanNotif?: (pesan: string, tipe?: 'info' | 'success' | 'error') => void;
   onBukaScanner: (mode: 'berangkat' | 'pulang') => void;
   loading: boolean;
 }
@@ -36,6 +39,8 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
   stats,
   pesertaList,
   onRefresh,
+  onRefreshPeserta,
+  tampilkanNotif,
   onBukaScanner,
   loading,
 }) => {
@@ -134,10 +139,11 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
               id="panitia-btn-refresh-top"
               onClick={onRefresh}
               disabled={loading}
+              title="Perbarui data statistik ringkasan"
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 transition disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-red-600' : ''}`} />
-              <span className="hidden sm:inline">{loading ? 'Memuat...' : 'Perbarui'}</span>
+              <span className="hidden sm:inline">{loading ? 'Memuat...' : 'Perbarui Statistik'}</span>
             </button>
 
             <div className="hidden md:flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
@@ -322,37 +328,13 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
             </div>
           )}
 
-          {/* TAB 2: DATA & REKAP (Fase B Placeholder) */}
+          {/* TAB 2: DATA & REKAP (Fase B: Rekap & Export Realtime) */}
           {panitiaTab === 'peserta' && (
-            <div className="max-w-4xl bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto shadow-inner">
-                <Users className="w-7 h-7" />
-              </div>
-              <div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 mb-2">
-                  Siap untuk Fase B
-                </span>
-                <h2 className="text-lg font-black text-slate-900">
-                  Data Peserta &amp; Rekap Realtime
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
-                  Shell sidebar dan navigasi Fase A telah aktif. Komponen RekapExportView dengan tabel realtime (auto-refresh 30s) dan ekspor CSV 13 kolom akan diintegrasikan di tab ini pada Fase B.
-                </p>
-              </div>
-
-              <div className="pt-2 flex flex-wrap justify-center gap-3">
-                <div className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 font-semibold">
-                  Total di memori: <span className="font-bold text-slate-900">{pesertaList.length} Peserta</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={onRefresh}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition cursor-pointer"
-                >
-                  Sinkronkan Sekarang
-                </button>
-              </div>
-            </div>
+            <RekapExportView
+              pesertaList={pesertaList}
+              onRefreshPeserta={onRefreshPeserta}
+              tampilkanNotif={tampilkanNotif}
+            />
           )}
 
           {/* TAB 3: SCANNER */}

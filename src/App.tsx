@@ -428,6 +428,8 @@ export const App: React.FC = () => {
               onLoginPanitia={handleLoginPanitia}
               onLogout={handleLogoutPanitia}
               onRefresh={muatStatistik}
+              onRefreshPeserta={muatPeserta}
+              tampilkanNotif={tampilkanNotif}
               onBukaScanner={handleBukaScanner}
               loading={loading}
               panitiaTab={panitiaTab}
