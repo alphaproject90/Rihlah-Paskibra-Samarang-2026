@@ -3,6 +3,7 @@ import { prisma } from '../../prisma.js';
 import bcrypt from 'bcryptjs';
 import { checkRateLimit, recordFailedAttempt } from '../../auth/rateLimit.js';
 import { RegisterPesertaSchema } from '../../validation/index.js';
+import { logSystem } from '../../logger.js';
 
 // Konstanta konfigurasi rate limit pendaftaran (kolektif sekolah via satu jaringan/IP)
 const REGISTER_RATE_LIMIT_MAX = 30;
@@ -14,8 +15,28 @@ export default async function handleRegister(req: VercelRequest, res: VercelResp
     return res.status(405).json({ success: false, status: 'error', error: 'Method not allowed', message: 'Method not allowed' });
   }
 
-  // Rate limiting anti-spam per-IP
   const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+
+  // 1. Enforcement Status Pendaftaran (Gating Server-Side)
+  // Dilakukan sebelum rate-limit check untuk menghemat kuota I/O Redis saat pendaftaran ditutup
+  const pengaturan = await prisma.pengaturan.findUnique({ where: { id: 'singleton' } });
+  const pendaftaranDibuka = pengaturan?.pendaftaranDibuka ?? true;
+
+  if (!pendaftaranDibuka) {
+    logSystem({
+      level: 'INFO',
+      action: 'REGISTER_REJECTED_CLOSED',
+      ipAddress: ip,
+    });
+    return res.status(403).json({
+      success: false,
+      status: 'error',
+      error: 'Pendaftaran saat ini sedang ditutup oleh panitia.',
+      message: 'Pendaftaran saat ini sedang ditutup oleh panitia.',
+    });
+  }
+
+  // 2. Rate limiting anti-spam per-IP
   const rateLimitKey = `register_ip_${ip}`;
 
   const rateLimitCheck = await checkRateLimit(rateLimitKey);
@@ -31,6 +52,11 @@ export default async function handleRegister(req: VercelRequest, res: VercelResp
   // Catat percobaan pendaftaran untuk IP ini
   const attemptRecord = await recordFailedAttempt(rateLimitKey, REGISTER_RATE_LIMIT_MAX, REGISTER_LOCK_DURATION_SECONDS);
   if (attemptRecord.locked) {
+    logSystem({
+      level: 'WARN',
+      action: 'REGISTER_RATE_LIMIT_LOCKED',
+      ipAddress: ip,
+    });
     return res.status(429).json({
       success: false,
       status: 'error',

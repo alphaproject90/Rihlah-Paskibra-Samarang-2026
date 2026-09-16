@@ -46,6 +46,16 @@ export interface DokumenRihlah {
   } | null;
 }
 
+export interface SystemLogEntry {
+  id: string;
+  level: 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL';
+  action: string;
+  actorId?: string | null;
+  details?: Record<string, unknown> | string | null;
+  ipAddress?: string | null;
+  createdAt: string;
+}
+
 export interface StatsRihlah {
   total: number;
   tidakIkut: number;
@@ -54,6 +64,7 @@ export interface StatsRihlah {
   ikut?: number;
   sudahBerangkat?: number;
   sudahPulang?: number;
+  pendaftaranDibuka?: boolean;
 }
 
 export type StatistikData = StatsRihlah;

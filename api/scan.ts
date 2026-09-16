@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma.js';
 import { getSession } from '../lib/api/auth.js';
+import { logSystem } from '../lib/logger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -8,6 +9,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(405).json({ success: false, status: 'error', error: 'Method not allowed', message: 'Method not allowed' });
     return;
   }
+
+  let targetId = '';
+  let scanMode: 'berangkat' | 'pulang' = 'berangkat';
 
   try {
     // ⚠️ SECURITY FIX #2 (Tahap 1, dipertahankan): verifikasi sesi panitia sebelum memproses scan
@@ -18,8 +22,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { id, idPeserta, mode } = req.body || {};
-    const targetId = (id || idPeserta || '').toString().trim().toUpperCase();
-    const scanMode = mode === 'pulang' ? 'pulang' : 'berangkat';
+    targetId = (id || idPeserta || '').toString().trim().toUpperCase();
+    scanMode = mode === 'pulang' ? 'pulang' : 'berangkat';
 
     if (!targetId) {
       res.status(400).json({ success: false, status: 'error', error: 'ID Peserta tidak boleh kosong.', message: 'ID Peserta tidak boleh kosong.' });
@@ -84,6 +88,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err: any) {
     if (err?.message === 'NOT_FOUND') {
+      logSystem({
+        level: 'WARN',
+        action: 'SCAN_INVALID_ID',
+        details: { targetId, mode: scanMode },
+        actorId: 'panitia',
+      });
       res.status(404).json({ success: false, status: 'error', error: 'ID Peserta tidak ditemukan dalam sistem.', message: 'ID Peserta tidak ditemukan dalam sistem.' });
       return;
     }
@@ -92,10 +102,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     if (err?.message === 'ALREADY_SCANNED_BERANGKAT') {
+      logSystem({
+        level: 'INFO',
+        action: 'SCAN_DUPLICATE',
+        details: { targetId, mode: scanMode },
+        actorId: 'panitia',
+      });
       res.status(409).json({ success: false, status: 'error', error: 'Peserta sudah tercatat presensi Keberangkatan sebelumnya.', message: 'Peserta sudah tercatat presensi Keberangkatan sebelumnya.' });
       return;
     }
     if (err?.message === 'ALREADY_SCANNED_PULANG') {
+      logSystem({
+        level: 'INFO',
+        action: 'SCAN_DUPLICATE',
+        details: { targetId, mode: scanMode },
+        actorId: 'panitia',
+      });
       res.status(409).json({ success: false, status: 'error', error: 'Peserta sudah tercatat presensi Kepulangan sebelumnya.', message: 'Peserta sudah tercatat presensi Kepulangan sebelumnya.' });
       return;
     }

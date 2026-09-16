@@ -375,7 +375,7 @@ export const App: React.FC = () => {
         {/* MAIN CONTENT AREA */}
         <div className={isPanitiaDashboard ? "relative z-0 flex-1 flex flex-col p-0" : "p-5 sm:p-8 relative z-0 flex-1 flex flex-col"}>
           {halamanAktif === 'home' && (
-            <HomeView onNavigasi={navigasiKe} />
+            <HomeView onNavigasi={navigasiKe} pendaftaranDibuka={stats?.pendaftaranDibuka ?? true} />
           )}
 
           {halamanAktif === 'daftar' && (
@@ -383,6 +383,7 @@ export const App: React.FC = () => {
               onSubmit={handleRegister}
               onSelesai={() => navigasiKe('home')}
               loading={loading}
+              pendaftaranDibuka={stats?.pendaftaranDibuka ?? true}
             />
           )}
 
