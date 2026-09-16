@@ -10,10 +10,10 @@
     "postinstall": "prisma generate",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "export:clean": "node scripts/export-clean.mjs"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@prisma/client": "^5.18.0",
     "@tailwindcss/vite": "^4.3.3",
     "@upstash/ratelimit": "^1.2.1",
@@ -41,7 +41,6 @@
     "@vercel/node": "^13.0.1",
     "autoprefixer": "^10.4.19",
     "esbuild": "^0.25.0",
-    "googleapis": "^140.0.1",
     "postcss": "^8.4.38",
     "prisma": "^5.18.0",
     "tailwindcss": "^4.3.3",

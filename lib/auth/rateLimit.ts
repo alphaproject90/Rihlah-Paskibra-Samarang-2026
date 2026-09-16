@@ -1,13 +1,5 @@
 import { Redis } from '@upstash/redis';
 
-// Fallback in-memory cache jika Redis belum dikonfigurasi
-interface AttemptRecord {
-  attempts: number;
-  lockedUntil?: number;
-}
-
-const memoryStore = new Map<string, AttemptRecord>();
-
 let redisClient: Redis | null = null;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
   try {
@@ -16,8 +8,12 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
     });
   } catch (err) {
-    console.warn('Gagal inisialisasi Upstash Redis, beralih ke in-memory store:', err);
+    console.error('Gagal inisialisasi Upstash Redis client:', err);
   }
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn(
+    '[SECURITY WARNING] UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN belum dikonfigurasi. Distributed rate limiting tidak aktif.'
+  );
 }
 
 const MAX_ATTEMPTS = 5;
@@ -29,103 +25,76 @@ export interface RateLimitResult {
 }
 
 /**
- * Memeriksa apakah suatu identifier (mis. IP atau username) sedang dalam status terkunci.
+ * Memeriksa apakah suatu identifier (mis. IP atau username) sedang dalam status terkunci di Upstash Redis.
+ * Menghindari ketergantungan pada in-memory state yang efemeral di serverless environment.
  */
 export async function checkRateLimit(key: string): Promise<RateLimitResult> {
-  const lockKey = `lock_${key}`;
-
-  if (redisClient) {
-    try {
-      const isLocked = await redisClient.get(lockKey);
-      if (isLocked) {
-        return {
-          allowed: false,
-          message: 'Terlalu banyak percobaan gagal. Akses dikunci sementara. Silakan tunggu 15 menit.',
-        };
-      }
-      return { allowed: true };
-    } catch {
-      // fallback jika redis error
-    }
+  if (!redisClient) {
+    return { allowed: true };
   }
 
-  // Memory fallback
-  const rec = memoryStore.get(key);
-  if (rec && rec.lockedUntil) {
-    if (Date.now() < rec.lockedUntil) {
+  const lockKey = `lock_${key}`;
+  try {
+    const isLocked = await redisClient.get(lockKey);
+    if (isLocked) {
       return {
         allowed: false,
         message: 'Terlalu banyak percobaan gagal. Akses dikunci sementara. Silakan tunggu 15 menit.',
       };
-    } else {
-      memoryStore.delete(key);
     }
+    return { allowed: true };
+  } catch (error) {
+    console.error(`[RATE_LIMIT] Error saat memeriksa status lock di Redis (${key}):`, error);
+    // Fail-open secara aman agar outage redis tidak melumpuhkan login pengguna sah
+    return { allowed: true };
   }
-
-  return { allowed: true };
 }
 
 /**
- * Mencatat percobaan gagal. Jika sudah mencapai batas maxAttempts, kunci selama durationSeconds.
+ * Mencatat percobaan gagal di Upstash Redis. Jika sudah mencapai batas maxAttempts, kunci selama durationSeconds.
  */
 export async function recordFailedAttempt(
   key: string,
   maxAttempts: number = MAX_ATTEMPTS,
   durationSeconds: number = LOCK_DURATION_SECONDS
 ): Promise<{ locked: boolean; attempts: number }> {
+  if (!redisClient) {
+    return { locked: false, attempts: 0 };
+  }
+
   const lockKey = `lock_${key}`;
   const attemptsKey = `attempts_${key}`;
 
-  if (redisClient) {
-    try {
-      const current = (await redisClient.incr(attemptsKey)) as number;
-      if (current === 1) {
-        await redisClient.expire(attemptsKey, durationSeconds);
-      }
-      if (current >= maxAttempts) {
-        await redisClient.set(lockKey, 'true', { ex: durationSeconds });
-        await redisClient.del(attemptsKey);
-        return { locked: true, attempts: current };
-      }
-      return { locked: false, attempts: current };
-    } catch {
-      // fallback ke memory
+  try {
+    const current = (await redisClient.incr(attemptsKey)) as number;
+    if (current === 1) {
+      await redisClient.expire(attemptsKey, durationSeconds);
     }
+    if (current >= maxAttempts) {
+      await redisClient.set(lockKey, 'true', { ex: durationSeconds });
+      await redisClient.del(attemptsKey);
+      return { locked: true, attempts: current };
+    }
+    return { locked: false, attempts: current };
+  } catch (error) {
+    console.error(`[RATE_LIMIT] Error saat mencatat percobaan gagal di Redis (${key}):`, error);
+    return { locked: false, attempts: 0 };
   }
-
-  // In-memory fallback
-  const now = Date.now();
-  let rec = memoryStore.get(key);
-  if (!rec || (rec.lockedUntil && now >= rec.lockedUntil)) {
-    rec = { attempts: 0 };
-  }
-
-  rec.attempts += 1;
-  if (rec.attempts >= maxAttempts) {
-    rec.lockedUntil = now + durationSeconds * 1000;
-    memoryStore.set(key, rec);
-    return { locked: true, attempts: rec.attempts };
-  }
-
-  memoryStore.set(key, rec);
-  return { locked: false, attempts: rec.attempts };
 }
 
 /**
- * Reset percobaan gagal ketika login berhasil.
+ * Reset counter percobaan gagal di Upstash Redis ketika autentikasi berhasil.
  */
 export async function resetRateLimit(key: string): Promise<void> {
+  if (!redisClient) return;
+
   const lockKey = `lock_${key}`;
   const attemptsKey = `attempts_${key}`;
 
-  if (redisClient) {
-    try {
-      await redisClient.del(lockKey);
-      await redisClient.del(attemptsKey);
-    } catch {
-      // ignore
-    }
+  try {
+    await redisClient.del(lockKey);
+    await redisClient.del(attemptsKey);
+  } catch (error) {
+    console.error(`[RATE_LIMIT] Error saat mereset rate limit di Redis (${key}):`, error);
   }
-
-  memoryStore.delete(key);
 }

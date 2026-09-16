@@ -6,6 +6,19 @@ import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../lib/a
 import { STRONG_PASSWORD_REGEX, GantiPasswordPesertaSchema } from '../../lib/validation/index.js';
 import { logSystem } from '../../lib/logger.js';
 
+/**
+ * Normalisasi format nomor telepon Indonesia ke format standar berawalan '08'
+ */
+function normalizeIndonesianPhone(val: string): string {
+  let d = val.replace(/\D/g, '');
+  if (d.startsWith('62')) {
+    d = '0' + d.slice(2);
+  } else if (!d.startsWith('0') && d.length >= 9) {
+    d = '0' + d;
+  }
+  return d;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
@@ -141,15 +154,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ─── Flow (b): Reset Password Darurat / Lupa ───────────────────────────────
     if (isForgotReset && !isPanitiaReset) {
-      // Verifikasi nomor WhatsApp terdaftar
-      const dbWaPribadi = (targetPeserta.waPribadi || '').replace(/\D/g, '');
-      const dbWaDarurat = (targetPeserta.waDarurat || '').replace(/\D/g, '');
+      // 1. Validasi Sekunder: Status keikutsertaan & kelayakan akun
+      // Hanya peserta aktif berstatus 'Ikut' dengan username yang berhak mereset password
+      if (targetPeserta.partisipasi !== 'Ikut' || !targetPeserta.username) {
+        const [ipFail, targetFail] = await Promise.all([
+          recordFailedAttempt(ipKey),
+          recordFailedAttempt(targetKey),
+        ]);
+        if (ipFail.locked || targetFail.locked) {
+          logSystem({
+            level: 'WARN',
+            action: 'GANTI_PASSWORD_LOCKED',
+            details: { target: idTarget, reason: 'inactive_or_unregistered' },
+            ipAddress: ip,
+          });
+          return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
+        }
+        return res.status(400).json({
+          error: 'Data tidak ditemukan atau nomor WhatsApp tidak cocok.',
+        });
+      }
+
+      // 2. Validasi Sekunder Opsional: Asal Sekolah / Unit jika dikirimkan oleh klien
+      const unitInput = (req.body?.unit || req.body?.asalSekolah || '').toString().trim().toLowerCase();
+      if (unitInput && targetPeserta.asalSekolah.trim().toLowerCase() !== unitInput) {
+        const [ipFail, targetFail] = await Promise.all([
+          recordFailedAttempt(ipKey),
+          recordFailedAttempt(targetKey),
+        ]);
+        if (ipFail.locked || targetFail.locked) {
+          logSystem({
+            level: 'WARN',
+            action: 'GANTI_PASSWORD_LOCKED',
+            details: { target: idTarget, reason: 'unit_mismatch' },
+            ipAddress: ip,
+          });
+          return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
+        }
+        return res.status(400).json({
+          error: 'Data tidak ditemukan atau nomor WhatsApp tidak cocok.',
+        });
+      }
+
+      // 3. Verifikasi Nomor WhatsApp Terdaftar (Normalisasi Penuh, Minimal 10 digit, Tanpa substring longgar)
+      const waInputNorm = normalizeIndonesianPhone(waInput);
+      if (waInputNorm.length < 10 || waInputNorm.length > 15) {
+        return res.status(400).json({
+          error: 'Format nomor WhatsApp tidak valid. Masukkan nomor lengkap minimal 10 digit.',
+        });
+      }
+
+      const dbWaPribadiNorm = normalizeIndonesianPhone(targetPeserta.waPribadi || '');
+      const dbWaDaruratNorm = normalizeIndonesianPhone(targetPeserta.waDarurat || '');
 
       const isWaMatch =
-        (dbWaPribadi && dbWaPribadi.endsWith(waInput.slice(-8))) ||
-        (dbWaDarurat && dbWaDarurat.endsWith(waInput.slice(-8))) ||
-        dbWaPribadi === waInput ||
-        dbWaDarurat === waInput;
+        (dbWaPribadiNorm && dbWaPribadiNorm === waInputNorm) ||
+        (dbWaDaruratNorm && dbWaDaruratNorm === waInputNorm);
 
       if (!isWaMatch) {
         // Anti-enumeration: pesan identik dengan user not found
@@ -187,6 +247,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isPanitiaReset) {
       await Promise.all([resetRateLimit(ipKey), resetRateLimit(targetKey)]);
     }
+
+    // Catat log audit trail keberhasilan
+    logSystem({
+      level: 'INFO',
+      action: isForgotReset ? 'RESET_PASSWORD_FORGOT_SUCCESS' : 'GANTI_PASSWORD_ACTIVE_SUCCESS',
+      actorId: targetPeserta.idPeserta || targetPeserta.username || idTarget,
+      details: {
+        flow: isForgotReset ? 'forgot_reset' : 'active_change',
+        idPeserta: targetPeserta.idPeserta,
+      },
+      ipAddress: ip,
+    });
 
     const successMsg = isForgotReset
       ? 'Password berhasil diperbarui! Silakan login kembali dengan password baru Anda.'
