@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { PesertaRihlah } from '../types';
+import { DokumenRihlah, PesertaRihlah } from '../types';
+import { apiService } from '../services/apiService';
 
 interface DashboardPesertaViewProps {
   peserta: PesertaRihlah;
@@ -9,6 +10,8 @@ interface DashboardPesertaViewProps {
 
 export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ peserta, onKeluar }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [daftarDokumen, setDaftarDokumen] = useState<DokumenRihlah[]>([]);
+  const [loadingDokumen, setLoadingDokumen] = useState<boolean>(true);
 
   useEffect(() => {
     if (peserta.id && peserta.partisipasi === 'Ikut') {
@@ -21,6 +24,30 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
         .catch((err) => console.error('Error generating QR:', err));
     }
   }, [peserta.id, peserta.partisipasi]);
+
+  useEffect(() => {
+    let mounted = true;
+    const muatDokumen = async () => {
+      setLoadingDokumen(true);
+      const res = await apiService.getDokumen();
+      if (mounted && res.ok) {
+        setDaftarDokumen(res.data);
+      }
+      if (mounted) setLoadingDokumen(false);
+    };
+    muatDokumen();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const formatSize = (bytes: number): string => {
+    if (!bytes || bytes <= 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
 
   const handleDownloadQr = () => {
     if (!qrDataUrl) return;
@@ -173,6 +200,86 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
           Anda terdaftar sebagai Tidak Ikut pada kegiatan ini.
         </div>
       )}
+
+      {/* Dokumen & Berkas (Fase C) */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm">Dokumen &amp; Berkas</h4>
+            <p className="text-xs text-slate-500">Panduan umum dan sertifikat / berkas personal Anda</p>
+          </div>
+          <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+            {daftarDokumen.length} Berkas
+          </span>
+        </div>
+
+        {loadingDokumen ? (
+          <div className="text-center py-6 text-xs text-slate-400">
+            Memuat berkas...
+          </div>
+        ) : daftarDokumen.length === 0 ? (
+          <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+            <svg className="w-8 h-8 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p className="text-xs text-slate-500 font-medium">Belum ada dokumen yang tersedia untuk kamu saat ini.</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Dokumen global atau berkas personal dari panitia akan muncul di sini.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {daftarDokumen.map((doc) => {
+              // Menggunakan blobDownloadUrl untuk unduhan langsung (fallback ke blobUrl jika belum terisi)
+              const downloadUrl = doc.blobDownloadUrl || doc.blobUrl;
+              return (
+                <div
+                  key={doc.id}
+                  className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                          doc.scope === 'GLOBAL'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-purple-100 text-purple-700'
+                        }`}
+                      >
+                        {doc.scope === 'GLOBAL' ? 'Dokumen Umum' : 'Personal'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {formatSize(doc.ukuranByte)}
+                      </span>
+                    </div>
+                    <h5 className="text-xs font-bold text-slate-800 truncate" title={doc.judul}>
+                      {doc.judul}
+                    </h5>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {new Date(doc.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <a
+                    href={downloadUrl}
+                    download={doc.judul.toLowerCase().endsWith('.pdf') ? doc.judul : `${doc.judul}.pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Unduh</span>
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Catatan Akses Publik (Sesuai Konfirmasi Blob Store Publik) */}
+        <p className="text-[10px] text-slate-400 leading-relaxed border-t border-slate-100 pt-3">
+          💡 <span className="font-semibold">Catatan:</span> Dokumen tersimpan secara publik dan dapat diakses langsung melalui tautan unduhan tanpa otentikasi tambahan jika tautan dibagikan ulang (tautan acak, tidak dijaga sesi).
+        </p>
+      </div>
     </div>
   );
 };

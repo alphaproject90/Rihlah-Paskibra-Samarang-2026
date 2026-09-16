@@ -3,6 +3,7 @@ import {
   PesertaRihlah,
   StatsRihlah,
   StatistikData,
+  DokumenRihlah,
   ApiResponse,
   LoginPesertaResponse,
   RegisterApiResponse,
@@ -362,6 +363,43 @@ export const apiService = {
         error: PESAN_KONEKSI,
         message: PESAN_KONEKSI,
       };
+    }
+  },
+
+  getDokumen: async (): Promise<{ ok: boolean; data: DokumenRihlah[]; message?: string; unauthorized?: boolean }> => {
+    try {
+      const res = await fetch('/api/dokumen');
+      const json = await bacaJson(res);
+      if (res.status === 401) {
+        return { ok: false, data: [], unauthorized: true, message: 'Sesi berakhir atau tidak valid.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success || !Array.isArray(json.data)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat dokumen (${res.status})`;
+        return { ok: false, data: [], message: errorMsg };
+      }
+      return { ok: true, data: json.data as DokumenRihlah[] };
+    } catch {
+      return { ok: false, data: [], message: PESAN_KONEKSI };
+    }
+  },
+
+  deleteDokumen: async (id: string): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      const res = await fetch(`/api/dokumen?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal menghapus dokumen (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: String(json.message || 'Dokumen berhasil dihapus') };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
     }
   },
 };

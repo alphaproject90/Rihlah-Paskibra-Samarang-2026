@@ -29,6 +29,23 @@ export interface PesertaRihlah {
   statusPassword?: 'Wajib Ganti' | 'Selesai' | '-';
 }
 
+export interface DokumenRihlah {
+  id: string;
+  judul: string;
+  scope: 'GLOBAL' | 'PERSONAL';
+  idPeserta?: string | null;
+  blobUrl: string;
+  blobDownloadUrl: string;
+  blobPathname: string;
+  ukuranByte?: number | null;
+  diunggahOleh?: string | null;
+  createdAt: string;
+  peserta?: {
+    namaLengkap?: string;
+    asalSekolah?: string;
+  } | null;
+}
+
 export interface StatsRihlah {
   total: number;
   tidakIkut: number;
