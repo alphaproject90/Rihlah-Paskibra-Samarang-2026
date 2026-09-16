@@ -26,6 +26,7 @@ model Peserta {
   statusPassword  String?   // "Wajib Ganti" | "Selesai"
   createdAt       DateTime  @default(now())
   logs            LogScan[]
+  dokumen         Dokumen[]
 }
 
 model LogScan {
@@ -46,4 +47,21 @@ model SystemLog {
   details   Json?    // Menyimpan data dinamis (pesan error, payload)
   ipAddress String?  // Menyimpan IP untuk melacak spammer/hacker
   createdAt DateTime @default(now())
+}
+
+model Dokumen {
+  id              String   @id @default(cuid())
+  judul           String
+  scope           String   // "GLOBAL" | "PERSONAL"
+  idPeserta       String?  // wajib diisi jika scope="PERSONAL", null jika "GLOBAL"
+  peserta         Peserta? @relation(fields: [idPeserta], references: [idPeserta])
+  blobUrl         String
+  blobDownloadUrl String
+  blobPathname    String   // dibutuhkan untuk del() saat hapus dokumen
+  ukuranByte      Int?
+  diunggahOleh    String?  // username panitia yang upload, untuk audit trail
+  createdAt       DateTime @default(now())
+
+  @@index([scope])
+  @@index([idPeserta])
 }

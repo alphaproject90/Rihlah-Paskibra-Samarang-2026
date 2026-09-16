@@ -17,6 +17,7 @@ import {
 import { PanitiaTabType } from './types';
 import { SidebarPanitia } from './SidebarPanitia';
 import { RekapExportView } from './RekapExportView';
+import { DokumenPdfView } from './DokumenPdfView';
 import { StatsRihlah, PesertaRihlah } from '../../types';
 
 interface DashboardPanitiaShellProps {
@@ -421,24 +422,11 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
             </div>
           )}
 
-          {/* TAB 4: DOKUMEN (Fase C Placeholder) */}
+          {/* TAB 4: DOKUMEN (Fase C: Manajemen Dokumen PDF) */}
           {panitiaTab === 'dokumen' && (
-            <div className="max-w-4xl bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto shadow-inner">
-                <FileText className="w-7 h-7" />
-              </div>
-              <div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 mb-2">
-                  Siap untuk Fase C
-                </span>
-                <h2 className="text-lg font-black text-slate-900">
-                  Manajemen Dokumen PDF (Global &amp; Personal)
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
-                  Penyimpanan dokumen via Vercel Blob storage, validasi magic bytes %PDF, dan kontrol hak unduh per peserta akan diintegrasikan di tab ini pada Fase C.
-                </p>
-              </div>
-            </div>
+            <DokumenPdfView
+              tampilkanNotif={tampilkanNotif}
+            />
           )}
 
           {/* TAB 5: LOG SISTEM (Fase D Placeholder) */}
