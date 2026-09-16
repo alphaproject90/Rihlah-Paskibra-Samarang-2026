@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { HalamanType, NotifState, PesertaRihlah, StatsRihlah, FormPendaftaran } from './types';
+import { PanitiaTabType } from './components/panitia/types';
 import { apiService } from './services/apiService';
 import { STRONG_PASSWORD_REGEX } from '../lib/validation';
 import { KopSurat } from './components/KopSurat';
@@ -35,6 +36,17 @@ export const App: React.FC = () => {
   const [scanMode, setScanMode] = useState<'berangkat' | 'pulang'>('berangkat');
   const [dashboardPeserta, setDashboardPeserta] = useState<PesertaRihlah | null>(null);
 
+  // State tab internal panitia dengan lazy initializer dari sessionStorage
+  const [panitiaTab, setPanitiaTab] = useState<PanitiaTabType>(() => {
+    return (sessionStorage.getItem('rihlah_panitia_tab') as PanitiaTabType) || 'ringkasan';
+  });
+
+  // Wrapper untuk memperbarui state dan menulis ulang sessionStorage secara konsisten
+  const handleSetPanitiaTab = useCallback((tab: PanitiaTabType) => {
+    setPanitiaTab(tab);
+    sessionStorage.setItem('rihlah_panitia_tab', tab);
+  }, []);
+
   // Mulai dari nol, bukan angka contoh. Angka palsu di dashboard panitia
   // lebih berbahaya daripada angka kosong.
   const [stats, setStats] = useState<StatsRihlah>(STATS_KOSONG);
@@ -65,6 +77,8 @@ export const App: React.FC = () => {
     (pesan: string) => {
       setIsPanitia(false);
       setPesertaList([]);
+      sessionStorage.removeItem('rihlah_panitia_active');
+      sessionStorage.removeItem('rihlah_panitia_tab');
       tampilkanNotif(pesan, 'error');
       navigasiKeRaw('login-panitia');
     },
@@ -122,6 +136,22 @@ export const App: React.FC = () => {
     sinkronkanDariHash();
     window.addEventListener('hashchange', sinkronkanDariHash);
     muatStatistik();
+
+    // Verifikasi otomatis sesi panitia jika ada flag sesi aktif di sessionStorage (menangani reload F5)
+    if (sessionStorage.getItem('rihlah_panitia_active') === 'true') {
+      apiService.getAllPeserta().then((res) => {
+        if (res.ok) {
+          setIsPanitia(true);
+          setPesertaList(res.data);
+          const savedTab = sessionStorage.getItem('rihlah_panitia_tab') as PanitiaTabType;
+          if (savedTab) setPanitiaTab(savedTab);
+        } else if (res.unauthorized) {
+          sessionStorage.removeItem('rihlah_panitia_active');
+          sessionStorage.removeItem('rihlah_panitia_tab');
+          setIsPanitia(false);
+        }
+      });
+    }
 
     return () => {
       window.removeEventListener('hashchange', sinkronkanDariHash);
@@ -257,6 +287,8 @@ export const App: React.FC = () => {
       const { valid, message } = await apiService.loginPanitia(username, password);
       if (valid) {
         setIsPanitia(true);
+        sessionStorage.setItem('rihlah_panitia_active', 'true');
+        sessionStorage.setItem('rihlah_panitia_tab', panitiaTab);
         tampilkanNotif('Akses panitia berhasil diverifikasi!', 'success');
         await muatStatistik();
         await muatPeserta();
@@ -275,6 +307,8 @@ export const App: React.FC = () => {
     await apiService.logout();
     setIsPanitia(false);
     setPesertaList([]);
+    sessionStorage.removeItem('rihlah_panitia_active');
+    sessionStorage.removeItem('rihlah_panitia_tab');
     // Bersihkan state peserta juga — mencegah data bocor ke sesi selanjutnya
     setDashboardPeserta(null);
     tampilkanNotif('Sesi panitia diakhiri.', 'info');
@@ -318,21 +352,25 @@ export const App: React.FC = () => {
     }
   };
 
+  const isPanitiaDashboard = halamanAktif === 'login-panitia' && isPanitia;
+
   return (
-    <div className="text-slate-800 antialiased min-h-screen bg-slate-50 sm:bg-gradient-to-br sm:from-slate-100 sm:to-slate-300 sm:py-10 flex flex-col justify-center items-center">
+    <div className="text-slate-800 antialiased min-h-screen bg-slate-50 sm:bg-gradient-to-br sm:from-slate-100 sm:to-slate-300 sm:py-6 sm:px-4 flex flex-col justify-center items-center">
       {/* Toast Notification */}
       <ToastNotif notif={notif} />
 
-      {/* Main Container Card */}
-      <div className="w-full max-w-lg mx-auto bg-white sm:rounded-[2rem] sm:shadow-2xl overflow-hidden min-h-screen sm:min-h-0 border border-slate-100 relative flex flex-col">
-        {/* KOP SURAT */}
-        <KopSurat />
+      {/* Main Container Card: Lebar penuh (max-w-7xl) saat dasbor panitia aktif, max-w-lg untuk halaman publik */}
+      <div className={`w-full mx-auto bg-white sm:rounded-[2rem] sm:shadow-2xl overflow-hidden min-h-screen sm:min-h-0 border border-slate-100 relative flex flex-col ${
+        isPanitiaDashboard ? 'max-w-7xl sm:rounded-3xl border-slate-200 shadow-2xl' : 'max-w-lg'
+      }`}>
+        {/* KOP SURAT - hanya untuk halaman selain dasbor panitia */}
+        {!isPanitiaDashboard && <KopSurat />}
 
-        {/* HEADER MERAH */}
-        <HeaderMerah halamanAktif={halamanAktif} onKembali={kembali} />
+        {/* HEADER MERAH - hanya untuk halaman selain dasbor panitia */}
+        {!isPanitiaDashboard && <HeaderMerah halamanAktif={halamanAktif} onKembali={kembali} />}
 
         {/* MAIN CONTENT AREA */}
-        <div className="p-5 sm:p-8 relative z-0 flex-1 flex flex-col">
+        <div className={isPanitiaDashboard ? "relative z-0 flex-1 flex flex-col p-0" : "p-5 sm:p-8 relative z-0 flex-1 flex flex-col"}>
           {halamanAktif === 'home' && (
             <HomeView onNavigasi={navigasiKe} />
           )}
@@ -389,13 +427,19 @@ export const App: React.FC = () => {
               onRefresh={muatStatistik}
               onBukaScanner={handleBukaScanner}
               loading={loading}
+              panitiaTab={panitiaTab}
+              onTabChange={handleSetPanitiaTab}
+              pesertaList={pesertaList}
             />
           )}
 
           {halamanAktif === 'scanner' && (
             <QrScanner
               scanMode={scanMode}
-              onKembali={() => navigasiKe('login-panitia')}
+              onKembali={() => {
+                navigasiKe('login-panitia');
+                handleSetPanitiaTab('scanner');
+              }}
               onSubmitScan={handleSubmitScan}
               loading={loading}
             />
