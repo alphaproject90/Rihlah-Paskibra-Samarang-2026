@@ -137,7 +137,13 @@ export const App: React.FC = () => {
     window.addEventListener('hashchange', sinkronkanDariHash);
     muatStatistik();
 
-    // Verifikasi otomatis sesi panitia jika ada flag sesi aktif di sessionStorage (menangani reload F5)
+    return () => {
+      window.removeEventListener('hashchange', sinkronkanDariHash);
+    };
+  }, [sinkronkanDariHash, muatStatistik]);
+
+  // Verifikasi otomatis sesi panitia saat mount (menangani reload F5)
+  useEffect(() => {
     if (sessionStorage.getItem('rihlah_panitia_active') === 'true') {
       apiService.getAllPeserta().then((res) => {
         if (res.ok) {
@@ -152,11 +158,8 @@ export const App: React.FC = () => {
         }
       });
     }
-
-    return () => {
-      window.removeEventListener('hashchange', sinkronkanDariHash);
-    };
-  }, [sinkronkanDariHash, muatStatistik]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const navigasiKe = (hal: HalamanType) => {
     if (!HALAMAN_VALID.includes(hal)) return;
