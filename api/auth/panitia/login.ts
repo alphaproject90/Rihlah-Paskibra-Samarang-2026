@@ -4,6 +4,7 @@ import { signToken, SESSION_COOKIE } from '../../../lib/api/auth.js';
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit.js';
 import { LoginPanitiaSchema } from '../../../lib/validation/index.js';
 import { logSystem } from '../../../lib/logger.js';
+import { prisma } from '../../../lib/prisma.js';
 
 // Cookie bersifat Secure hanya di production (HTTPS) — biarkan bekerja di localhost HTTP
 const isProduction = process.env.NODE_ENV === 'production';
@@ -11,7 +12,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  if (!process.env.PANITIA_USERNAME || !process.env.PANITIA_PASSWORD_HASH) {
+  if (!process.env.PANITIA_USERNAME) {
     return res.status(500).json({ error: 'Server misconfiguration: Credentials missing.' });
   }
 
@@ -50,7 +51,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Kredensial tidak valid' });
     }
 
-    const isValid = await bcrypt.compare(password, process.env.PANITIA_PASSWORD_HASH);
+    // Ambil hash password aktif dari DB Pengaturan atau fallback ke environment variable
+    const pengaturan = await prisma.pengaturan.findUnique({ where: { id: 'singleton' } });
+    const currentHash = (pengaturan as any)?.panitiaPasswordHash || process.env.PANITIA_PASSWORD_HASH;
+
+    if (!currentHash) {
+      return res.status(500).json({ error: 'Server misconfiguration: Password hash not configured.' });
+    }
+
+    const isValid = await bcrypt.compare(password, currentHash);
     if (!isValid) {
       const { locked } = await recordFailedAttempt(rateLimitKey);
       if (locked) {
