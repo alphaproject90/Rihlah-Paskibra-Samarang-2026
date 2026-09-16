@@ -10,6 +10,8 @@ interface LoginPanitiaViewProps {
   onLoginPanitia: (username: string, password: string) => Promise<boolean>;
   onLogout: () => void;
   onRefresh: () => void;
+  onRefreshPeserta: () => void | Promise<void>;
+  tampilkanNotif?: (pesan: string, tipe?: 'info' | 'success' | 'error') => void;
   onBukaScanner: (mode: 'berangkat' | 'pulang') => void;
   loading: boolean;
   panitiaTab?: PanitiaTabType;
@@ -23,6 +25,8 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
   onLoginPanitia,
   onLogout,
   onRefresh,
+  onRefreshPeserta,
+  tampilkanNotif,
   onBukaScanner,
   loading,
   panitiaTab = 'ringkasan',
@@ -117,6 +121,8 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
       stats={stats}
       pesertaList={pesertaList}
       onRefresh={onRefresh}
+      onRefreshPeserta={onRefreshPeserta}
+      tampilkanNotif={tampilkanNotif}
       onBukaScanner={onBukaScanner}
       loading={loading}
     />

@@ -3,6 +3,7 @@ export function exportToCsv(filename: string, rows: object[]): void {
   const separator = ',';
   const keys = Object.keys(rows[0]);
   const csvContent =
+    '\uFEFF' +
     keys.join(separator) +
     '\n' +
     rows
@@ -10,7 +11,7 @@ export function exportToCsv(filename: string, rows: object[]): void {
         return keys
           .map(k => {
             let cell = (row as any)[k] === null || (row as any)[k] === undefined ? '' : (row as any)[k];
-            cell = cell instanceof Date ? cell.toLocaleString() : cell.toString().replace(/"/g, '""');
+            cell = cell instanceof Date ? cell.toLocaleString('id-ID') : cell.toString().replace(/"/g, '""');
             if (cell.search(/("|,|\n)/g) >= 0) {
               cell = `"${cell}"`;
             }
