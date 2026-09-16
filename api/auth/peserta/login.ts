@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { prisma } from '../../../lib/prisma';
-import { signToken, SESSION_COOKIE } from '../../../lib/api/auth';
-import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit';
-import { LoginPesertaSchema } from '../../../lib/validation';
+import { prisma } from '../../../lib/prisma.js';
+import { signToken, SESSION_COOKIE } from '../../../lib/api/auth.js';
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit.js';
+import { LoginPesertaSchema } from '../../../lib/validation/index.js';
 
 // Cookie bersifat Secure hanya di production (HTTPS)
 const isProduction = process.env.NODE_ENV === 'production';

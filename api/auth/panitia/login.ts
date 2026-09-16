@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { signToken, SESSION_COOKIE } from '../../../lib/api/auth';
-import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit';
-import { LoginPanitiaSchema } from '../../../lib/validation';
+import { signToken, SESSION_COOKIE } from '../../../lib/api/auth.js';
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from '../../../lib/auth/rateLimit.js';
+import { LoginPanitiaSchema } from '../../../lib/validation/index.js';
 
 // Cookie bersifat Secure hanya di production (HTTPS) — biarkan bekerja di localhost HTTP
 const isProduction = process.env.NODE_ENV === 'production';
