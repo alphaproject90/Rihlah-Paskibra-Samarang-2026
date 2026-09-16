@@ -1,5 +1,11 @@
 {
   "framework": "vite",
   "buildCommand": "prisma generate && vite build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/auth/panitia/ganti-password",
+      "destination": "/api/auth/ganti-password?target=panitia"
+    }
+  ]
 }

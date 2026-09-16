@@ -468,13 +468,14 @@ export const apiService = {
     confirmPassword?: string
   ): Promise<{ ok: boolean; message?: string; unauthorized?: boolean }> => {
     try {
-      const res = await fetch('/api/auth/panitia/ganti-password', {
+      const res = await fetch('/api/auth/ganti-password?target=panitia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           oldPassword,
           newPassword,
           confirmPassword: confirmPassword || newPassword,
+          target: 'panitia',
         }),
       });
       const json = await bacaJson(res);
