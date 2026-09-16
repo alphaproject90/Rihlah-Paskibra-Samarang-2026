@@ -67,8 +67,9 @@ model Dokumen {
 }
 
 model Pengaturan {
-  id                 String   @id @default("singleton")
-  pendaftaranDibuka  Boolean  @default(true)
-  updatedAt          DateTime @updatedAt
-  updatedOleh        String?  // username/role panitia yang terakhir mengubah, untuk audit
+  id                  String   @id @default("singleton")
+  pendaftaranDibuka   Boolean  @default(true)
+  panitiaPasswordHash String?  // Hash password panitia hasil rotasi via antarmuka admin
+  updatedAt           DateTime @updatedAt
+  updatedOleh         String?  // username/role panitia yang terakhir mengubah, untuk audit
 }

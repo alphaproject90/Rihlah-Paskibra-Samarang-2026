@@ -461,5 +461,38 @@ export const apiService = {
       return { ok: false, message: PESAN_KONEKSI };
     }
   },
+
+  gantiPasswordPanitia: async (
+    oldPassword: string,
+    newPassword: string,
+    confirmPassword?: string
+  ): Promise<{ ok: boolean; message?: string; unauthorized?: boolean }> => {
+    try {
+      const res = await fetch('/api/auth/panitia/ganti-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldPassword,
+          newPassword,
+          confirmPassword: confirmPassword || newPassword,
+        }),
+      });
+      const json = await bacaJson(res);
+
+      if (res.status === 401) {
+        return { ok: false, unauthorized: true, message: 'Sesi panitia berakhir atau tidak sah. Silakan login ulang.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal mengubah password panitia (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: String(json.message || 'Password panitia berhasil diperbarui.') };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
 };
+
 
