@@ -8,12 +8,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // 1. Validasi hak akses: Hanya panitia yang diizinkan mengunggah dokumen
-  const session = await getSession(req, 'panitia');
-  if (!session || (session as any).role !== 'panitia') {
-    return res.status(401).json({ error: 'Hanya panitia yang berwenang mengunggah dokumen.' });
-  }
-
   const body = req.body as HandleUploadBody;
 
   try {
@@ -21,13 +15,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body,
       request: req as any,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
+        // Validasi hak akses: Callback ini dipanggil saat browser meminta client upload token (membawa cookie sesi)
+        const session = await getSession(req, 'panitia');
+        if (!session || (session as any).role !== 'panitia') {
+          throw new Error('Hanya panitia yang berwenang mengunggah dokumen.');
+        }
+
+        let tokenPayload = clientPayload;
+        try {
+          const parsed = JSON.parse(clientPayload || '{}');
+          parsed.diunggahOleh = (session as any).username || (session as any).role || 'panitia';
+          tokenPayload = JSON.stringify(parsed);
+        } catch {
+          // fallback jika clientPayload bukan JSON
+        }
+
         return {
           allowedContentTypes: ['application/pdf'],
           maximumSizeInBytes: 8 * 1024 * 1024, // 8MB limit
-          tokenPayload: clientPayload,
+          tokenPayload,
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // Callback ini dipanggil via webhook internal Vercel Blob (keaslian diverifikasi via signature BLOB_READ_WRITE_TOKEN)
         const payload = JSON.parse(tokenPayload || '{}');
 
         // Validasi keamanan: Pastikan idPeserta benar-benar terdaftar di database untuk dokumen personal
@@ -56,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             blobDownloadUrl: blob.downloadUrl || blob.url,
             blobPathname: blob.pathname,
             ukuranByte: typeof payload.ukuranByte === 'number' ? payload.ukuranByte : null,
-            diunggahOleh: payload.username || (session as any).role || 'panitia',
+            diunggahOleh: payload.diunggahOleh || payload.username || 'panitia',
           },
         });
       },

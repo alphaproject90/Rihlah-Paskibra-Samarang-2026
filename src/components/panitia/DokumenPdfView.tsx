@@ -75,6 +75,22 @@ export const DokumenPdfView: React.FC<DokumenPdfViewProps> = ({ tampilkanNotif }
     }
   }, [tampilkanNotif]);
 
+  // Helper retry fetch dokumen setelah upload untuk mengatasi race condition webhook onUploadCompleted
+  const muatDokumenDenganRetry = useCallback(async (
+    cekBaru: (list: DokumenRihlah[]) => boolean,
+    maxRetry = 3,
+    delayMs = 700
+  ) => {
+    for (let i = 0; i < maxRetry; i++) {
+      const res = await apiService.getDokumen();
+      if (res.ok) {
+        setDaftarDokumen(res.data);
+        if (cekBaru(res.data)) return;
+      }
+      if (i < maxRetry - 1) await new Promise(r => setTimeout(r, delayMs));
+    }
+  }, []);
+
   useEffect(() => {
     muatDokumen();
   }, [muatDokumen]);
@@ -113,6 +129,7 @@ export const DokumenPdfView: React.FC<DokumenPdfViewProps> = ({ tampilkanNotif }
     setUploadingGlobal(true);
     try {
       const judul = judulGlobal.trim() || fileGlobal.name.replace(/\.[^/.]+$/, '');
+      const jumlahSebelum = daftarDokumen.length;
       
       // Upload via Vercel Blob client helper
       // Catatan: PutBlobResult tidak memiliki properti size di v2.8.0, kirim ukuranByte via clientPayload
@@ -129,7 +146,7 @@ export const DokumenPdfView: React.FC<DokumenPdfViewProps> = ({ tampilkanNotif }
       if (tampilkanNotif) tampilkanNotif(`Dokumen global "${judul}" berhasil diunggah!`, 'success');
       setJudulGlobal('');
       setFileGlobal(null);
-      await muatDokumen();
+      await muatDokumenDenganRetry(list => list.length > jumlahSebelum);
     } catch (err: any) {
       console.error('Upload global error:', err);
       if (tampilkanNotif) tampilkanNotif(err.message || 'Gagal mengunggah dokumen global.', 'error');
@@ -160,6 +177,7 @@ export const DokumenPdfView: React.FC<DokumenPdfViewProps> = ({ tampilkanNotif }
     if (filesPersonal.length === 0) return;
 
     setUploadingPersonal(true);
+    const jumlahSebelum = daftarDokumen.length;
     let suksesCount = 0;
     let gagalCount = 0;
 
@@ -207,8 +225,8 @@ export const DokumenPdfView: React.FC<DokumenPdfViewProps> = ({ tampilkanNotif }
       }
     }
 
-    // Refresh daftar dokumen
-    await muatDokumen();
+    // Refresh daftar dokumen dengan retry untuk menutup race condition webhook server
+    await muatDokumenDenganRetry(list => list.length >= jumlahSebelum + suksesCount);
   };
 
   // Dokumen Global Filtered
