@@ -8,6 +8,32 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Enum role untuk sistem multi-panitia (Tahap 1)
+enum RolePanitia {
+  SUPER_ADMIN
+  ADMIN_MOBIL
+}
+
+// Model akun panitia individual (Tahap 1)
+// Menggantikan sistem akun tunggal berbasis env-var secara bertahap (zero-downtime).
+// Super Admin: akses penuh ke semua data & manajemen akun.
+// Admin Mobil: hanya bisa lihat & scan peserta di mobilnya sendiri.
+model Panitia {
+  id            String      @id @default(cuid())
+  username      String      @unique
+  passwordHash  String
+  namaLengkap   String
+  role          RolePanitia
+  mobil         String?     // Wajib diisi jika role=ADMIN_MOBIL, null untuk SUPER_ADMIN
+  aktif         Boolean     @default(true)
+  createdBy     String?     // username Super Admin yang membuat akun ini (null jika di-migrasi dari env)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([username])
+  @@index([role])
+}
+
 model Peserta {
   id              String    @id @default(cuid())
   idPeserta       String    @unique // format: PASK-XXXX / TIDAK-IKUT
@@ -19,15 +45,20 @@ model Peserta {
   waPribadi       String?
   waDarurat       String?
   riwayatMedis    String?
+  mobil           String?   // Nama mobil rombongan peserta (Tahap 1) — nullable, diisi manual panitia
   waktuBerangkat  DateTime?
   waktuPulang     DateTime?
   username        String?   @unique
   passwordHash    String?
   statusPassword  String?   // "Wajib Ganti" | "Selesai"
   createdAt       DateTime  @default(now())
+  deletedAt       DateTime? // Soft delete untuk audit & keamanan data (Tahap 5)
   logs            LogScan[]
   dokumen         Dokumen[]
   resetRequests   ResetPasswordRequest[]
+  absenKegiatan   AbsenKegiatan[]
+
+  @@index([deletedAt])
 }
 
 model ResetPasswordRequest {
@@ -57,8 +88,36 @@ model LogScan {
   waktuScan  DateTime @default(now())
   idPeserta  String
   nama       String
-  keterangan String   // "Scan Keberangkatan" | "Scan Kepulangan"
+  keterangan String   // "Registrasi Ulang" | "Scan Keberangkatan" | "Scan Kepulangan dari Lokasi" | "Scan Tiba di Rumah"
   peserta    Peserta  @relation(fields: [idPeserta], references: [idPeserta])
+}
+
+// Model sesi kegiatan lapangan untuk presensi terpisah (Tahap 3)
+model Kegiatan {
+  id          String          @id @default(cuid())
+  nama        String
+  deskripsi   String?
+  aktif       Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  absen       AbsenKegiatan[]
+
+  @@index([aktif])
+}
+
+// Log presensi kehadiran per peserta per kegiatan lapangan (Tahap 3)
+model AbsenKegiatan {
+  id          String    @id @default(cuid())
+  kegiatanId  String
+  kegiatan    Kegiatan  @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
+  idPeserta   String
+  peserta     Peserta   @relation(fields: [idPeserta], references: [idPeserta], onDelete: Cascade)
+  waktuAbsen  DateTime  @default(now())
+  dicatatOleh String?   // username panitia yang mencatat presensi hadir
+
+  @@unique([kegiatanId, idPeserta])
+  @@index([kegiatanId])
+  @@index([idPeserta])
 }
 
 // Model baru untuk mencatat aktivitas sistem

@@ -17,16 +17,48 @@ export interface PesertaRihlah {
   nama: string;
   namaLengkap?: string; // alias pendukung dari response backend agar tidak undefined
   jk: 'Laki-laki' | 'Perempuan';
+  jenisKelamin?: 'Laki-laki' | 'Perempuan'; // alias backend
   unit: string;
+  asalSekolah?: string;
   partisipasi: 'Ikut' | 'Tidak Ikut';
   alasan?: string;
   waPeserta?: string;
   waDarurat?: string;
   medis?: string;
+  mobil?: string | null;
+  idPeserta?: string;
   waktuBerangkat?: string;
   waktuPulang?: string;
   username?: string;
   statusPassword?: 'Wajib Ganti' | 'Selesai' | '-';
+  hasSuratOrtu?: boolean;
+  suratOrtuUrl?: string | null;
+  deletedAt?: string | null;
+}
+
+export interface PesertaPublikItem {
+  no: number;
+  nama: string;
+  unit: string;
+  partisipasi: string;
+  sudahBerangkat: boolean;
+  sudahPulang: boolean;
+}
+
+export interface BuktiPendaftaranData {
+  id: string;
+  idPeserta: string;
+  nama: string;
+  jk: string;
+  unit: string;
+  partisipasi: string;
+  mobil?: string | null;
+  tanggalDaftar: string;
+  generatedAt: string;
+  verificationCode: string;
+  qrPayload: string;
+  officialIssuedAt?: string;
+  panitiaContact?: string;
 }
 
 export interface DokumenRihlah {

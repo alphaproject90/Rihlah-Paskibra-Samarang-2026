@@ -6,6 +6,26 @@
     {
       "source": "/api/auth/panitia/ganti-password",
       "destination": "/api/auth/ganti-password?target=panitia"
+    },
+    {
+      "source": "/api/kegiatan/absen",
+      "destination": "/api/peserta?resource=absen_kegiatan"
+    },
+    {
+      "source": "/api/kegiatan",
+      "destination": "/api/peserta?resource=kegiatan"
+    },
+    {
+      "source": "/api/peserta/dokumen-upload",
+      "destination": "/api/dokumen/upload"
+    },
+    {
+      "source": "/api/peserta/publik",
+      "destination": "/api/peserta?resource=publik"
+    },
+    {
+      "source": "/api/peserta/bukti-pendaftaran",
+      "destination": "/api/peserta?resource=bukti_pendaftaran"
     }
   ]
 }

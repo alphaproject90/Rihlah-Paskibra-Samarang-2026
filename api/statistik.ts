@@ -16,10 +16,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     try {
       const [totalIkut, totalTidakIkut, totalBerangkat, totalPulang, pengaturan] = await Promise.all([
-        prisma.peserta.count({ where: { partisipasi: 'Ikut' } }),
-        prisma.peserta.count({ where: { partisipasi: 'Tidak Ikut' } }),
-        prisma.peserta.count({ where: { waktuBerangkat: { not: null } } }),
-        prisma.peserta.count({ where: { waktuPulang: { not: null } } }),
+        prisma.peserta.count({ where: { partisipasi: 'Ikut', deletedAt: null } }),
+        prisma.peserta.count({ where: { partisipasi: 'Tidak Ikut', deletedAt: null } }),
+        prisma.peserta.count({ where: { waktuBerangkat: { not: null }, deletedAt: null } }),
+        prisma.peserta.count({ where: { waktuPulang: { not: null }, deletedAt: null } }),
         prisma.pengaturan.findUnique({ where: { id: 'singleton' } }),
       ]);
 

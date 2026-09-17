@@ -9,7 +9,9 @@ import {
   Clock, 
   UserCheck, 
   UserX,
-  Sparkles
+  Sparkles,
+  ClipboardList,
+  Home
 } from 'lucide-react';
 import { PanitiaTabType } from './types';
 import { SidebarPanitia } from './SidebarPanitia';
@@ -17,6 +19,8 @@ import { RekapExportView } from './RekapExportView';
 import { DokumenPdfView } from './DokumenPdfView';
 import { LogSistemView } from './LogSistemView';
 import { PengaturanView } from './PengaturanView';
+import { ManajemenAdminView } from './ManajemenAdminView';
+import { AbsenKegiatanView } from './AbsenKegiatanView';
 import { StatsRihlah, PesertaRihlah } from '../../types';
 
 interface DashboardPanitiaShellProps {
@@ -28,8 +32,10 @@ interface DashboardPanitiaShellProps {
   onRefresh: () => void;
   onRefreshPeserta: () => void | Promise<void>;
   tampilkanNotif?: (pesan: string, tipe?: 'info' | 'success' | 'error') => void;
-  onBukaScanner: (mode: 'berangkat' | 'pulang') => void;
+  onBukaScanner: (mode: 'registrasi_ulang' | 'berangkat' | 'pulang' | 'pulang_dari_lokasi' | 'tiba_di_rumah') => void;
   loading: boolean;
+  panitiaRole?: string;    // 'SUPER_ADMIN' | 'ADMIN_MOBIL'
+  panitiaUsername?: string;
 }
 
 export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
@@ -43,8 +49,11 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
   tampilkanNotif,
   onBukaScanner,
   loading,
+  panitiaRole,
+  panitiaUsername,
 }) => {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
+  const isSuperAdmin = !panitiaRole || panitiaRole === 'SUPER_ADMIN';
 
   // Normalisasi data statistik
   const statsAktif = (stats as any)?.data ?? stats ?? {
@@ -73,6 +82,10 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
       title: 'Pusat Pemindai Presensi',
       subtitle: 'Pilih sesi presensi untuk mengaktifkan pemindai kamera QR',
     },
+    kegiatan: {
+      title: 'Absen Sesi Kegiatan Lapangan',
+      subtitle: 'Presensi kehadiran peserta per agenda acara rihlah (global semua mobil)',
+    },
     dokumen: {
       title: 'Manajemen Dokumen PDF',
       subtitle: 'Penyimpanan berkas global & sertifikat personal',
@@ -84,6 +97,10 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
     pengaturan: {
       title: 'Pengaturan Dasbor',
       subtitle: 'Kontrol status pendaftaran & kredensial panitia',
+    },
+    admin: {
+      title: 'Kelola Akun Panitia',
+      subtitle: 'Buat & pantau akun Super Admin dan Admin Mobil',
     },
   };
 
@@ -99,6 +116,9 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
         stats={stats}
         isOpenMobile={isOpenMobile}
         onCloseMobile={() => setIsOpenMobile(false)}
+        isSuperAdmin={isSuperAdmin}
+        username={panitiaUsername}
+        panitiaRole={panitiaRole}
       />
 
       {/* Main Content Area */}
@@ -334,6 +354,7 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
               pesertaList={pesertaList}
               onRefreshPeserta={onRefreshPeserta}
               tampilkanNotif={tampilkanNotif}
+              isSuperAdmin={isSuperAdmin}
             />
           )}
 
@@ -356,17 +377,42 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                  {/* Card Keberangkatan */}
+                  {/* Checkpoint 1: Registrasi Ulang */}
+                  <div className="p-5 rounded-2xl border-2 border-violet-200 bg-violet-50/50 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-violet-200 text-violet-900 uppercase tracking-wider mb-2">
+                        Tahap 1: Pra-Keberangkatan
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900">
+                        1. Registrasi Ulang
+                      </h3>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Verifikasi kehadiran fisik awal peserta di titik kumpul tanpa mengunci jam perjalanan.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      id="btn-scan-registrasi-ulang-panel"
+                      onClick={() => onBukaScanner('registrasi_ulang')}
+                      className="w-full py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                      Mulai Registrasi Ulang
+                    </button>
+                  </div>
+
+                  {/* Checkpoint 2: Keberangkatan */}
                   <div className="p-5 rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 flex flex-col justify-between space-y-4">
                     <div>
                       <div className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-200 text-emerald-900 uppercase tracking-wider mb-2">
-                        Sesi Pagi
+                        Tahap 2: Keberangkatan
                       </div>
                       <h3 className="text-lg font-black text-slate-900">
-                        Presensi Keberangkatan
+                        2. Presensi Keberangkatan
                       </h3>
                       <p className="text-xs text-slate-600 mt-1">
-                        Memvalidasi kehadiran peserta sebelum rombongan berangkat ke lokasi giat.
+                        Catat waktu berangkat resmi peserta sebelum armada mobil bergerak menuju lokasi.
                       </p>
                     </div>
 
@@ -377,32 +423,57 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
                       className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition cursor-pointer flex items-center justify-center gap-2"
                     >
                       <QrCode className="w-4 h-4" />
-                      Mulai Scan Keberangkatan
+                      Mulai Scan Berangkat
                     </button>
                   </div>
 
-                  {/* Card Kepulangan */}
+                  {/* Checkpoint 3: Kepulangan dari Lokasi */}
                   <div className="p-5 rounded-2xl border-2 border-blue-200 bg-blue-50/50 flex flex-col justify-between space-y-4">
                     <div>
                       <div className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-blue-200 text-blue-900 uppercase tracking-wider mb-2">
-                        Sesi Akhir
+                        Tahap 3: Selesai di Lokasi
                       </div>
                       <h3 className="text-lg font-black text-slate-900">
-                        Presensi Kepulangan
+                        3. Pulang dari Lokasi
                       </h3>
                       <p className="text-xs text-slate-600 mt-1">
-                        Memvalidasi absensi akhir setelah rangkaian acara rihlah selesai.
+                        Memvalidasi absensi peserta saat bersiap naik kendaraan meninggalkan lokasi giat.
                       </p>
                     </div>
 
                     <button
                       type="button"
                       id="btn-scan-pulang-panel"
-                      onClick={() => onBukaScanner('pulang')}
+                      onClick={() => onBukaScanner('pulang_dari_lokasi')}
                       className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition cursor-pointer flex items-center justify-center gap-2"
                     >
                       <QrCode className="w-4 h-4" />
-                      Mulai Scan Kepulangan
+                      Mulai Scan Pulang Lokasi
+                    </button>
+                  </div>
+
+                  {/* Checkpoint 4: Tiba di Rumah */}
+                  <div className="p-5 rounded-2xl border-2 border-teal-200 bg-teal-50/50 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-teal-200 text-teal-900 uppercase tracking-wider mb-2">
+                        Tahap 4: Akhir Perjalanan
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900">
+                        4. Tiba di Rumah / Basecamp
+                      </h3>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Konfirmasi final keselamatan peserta bahwa telah sampai dengan aman di tujuan akhir.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      id="btn-scan-tiba-rumah-panel"
+                      onClick={() => onBukaScanner('tiba_di_rumah')}
+                      className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Home className="w-4 h-4" />
+                      Mulai Scan Tiba di Rumah
                     </button>
                   </div>
                 </div>
@@ -415,10 +486,19 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
                   Petunjuk Pemindai:
                 </span>
                 <p>
-                  Pastikan kamera peramban telah diizinkan. Pemindai juga mendukung input ID Peserta secara manual jika QR code kotor atau rusak.
+                  Urutan scan perjalanan: <b>Keberangkatan → Pulang dari Lokasi → Tiba di Rumah</b>. Scanner kamera mendukung kamera depan/belakang serta input ID manual.
                 </p>
               </div>
             </div>
+          )}
+
+          {/* TAB: KEGIATAN (Tahap 3: Absen Kegiatan Lapangan) */}
+          {panitiaTab === 'kegiatan' && (
+            <AbsenKegiatanView
+              isSuperAdmin={isSuperAdmin}
+              pesertaList={pesertaList}
+              tampilkanNotif={tampilkanNotif}
+            />
           )}
 
           {/* TAB 4: DOKUMEN (Fase C: Manajemen Dokumen PDF) */}
@@ -442,6 +522,11 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
               onRefresh={onRefresh}
               tampilkanNotif={tampilkanNotif}
             />
+          )}
+
+          {/* TAB 7: MANAJEMEN AKUN PANITIA (Tahap 2 — Hanya Super Admin) */}
+          {panitiaTab === 'admin' && isSuperAdmin && (
+            <ManajemenAdminView tampilkanNotif={tampilkanNotif} />
           )}
         </main>
       </div>

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "export:clean": "node scripts/export-clean.mjs"
+    "export:clean": "node scripts/export-clean.mjs",
+    "migrate:admin": "node scripts/migrate-super-admin.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.18.0",
@@ -22,6 +23,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "bcryptjs": "^2.4.3",
     "dotenv": "^17.2.3",
+    "google-auth-library": "^11.1.0",
     "html5-qrcode": "^2.3.8",
     "jose": "^5.9.6",
     "lucide-react": "^0.468.0",

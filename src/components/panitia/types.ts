@@ -4,9 +4,11 @@ export type PanitiaTabType =
   | 'ringkasan' 
   | 'peserta' 
   | 'scanner' 
+  | 'kegiatan'
   | 'dokumen' 
   | 'log' 
-  | 'pengaturan';
+  | 'pengaturan'
+  | 'admin'; // Tab manajemen akun panitia — hanya Super Admin
 
 export interface PanitiaMenuItem {
   id: PanitiaTabType;
@@ -16,3 +18,28 @@ export interface PanitiaMenuItem {
   badgeColor?: string;
   description?: string;
 }
+
+export interface KegiatanRihlah {
+  id: string;
+  nama: string;
+  deskripsi: string | null;
+  aktif: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    absen: number;
+  };
+}
+
+export interface AbsenKegiatanItem {
+  id: string;
+  kegiatanId: string;
+  idPeserta: string;
+  waktuAbsen: string;
+  dicatatOleh: string | null;
+  peserta?: {
+    namaLengkap: string;
+    mobil: string | null;
+  };
+}
+

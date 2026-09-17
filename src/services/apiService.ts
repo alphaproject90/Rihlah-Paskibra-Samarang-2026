@@ -10,7 +10,11 @@ import {
   RegisterApiResponse,
   SimpleApiResponse,
   ScanApiResponse,
+  PesertaPublikItem,
+  BuktiPendaftaranData,
 } from '../types';
+import { KegiatanRihlah, AbsenKegiatanItem } from '../components/panitia/types';
+import { upload } from '@vercel/blob/client';
 
 export interface HasilApi<T> {
   ok: boolean;
@@ -154,19 +158,24 @@ export const apiService = {
       const raw = Array.isArray(json.data) ? json.data : [];
       const mapped: PesertaRihlah[] = raw.map((p: Record<string, unknown>) => ({
         id: String(p.idPeserta ?? ''),
+        idPeserta: String(p.idPeserta ?? ''),
         nama: String(p.namaLengkap ?? ''),
         namaLengkap: String(p.namaLengkap ?? ''),
         jk: (p.jenisKelamin as PesertaRihlah['jk']) ?? 'Laki-laki',
         unit: String(p.asalSekolah ?? ''),
+        asalSekolah: String(p.asalSekolah ?? ''),
         partisipasi: (p.partisipasi as PesertaRihlah['partisipasi']) ?? 'Tidak Ikut',
         alasan: p.alasanTidakIkut ? String(p.alasanTidakIkut) : undefined,
         waPeserta: p.waPribadi ? String(p.waPribadi) : undefined,
         waDarurat: p.waDarurat ? String(p.waDarurat) : undefined,
         medis: p.riwayatMedis ? String(p.riwayatMedis) : undefined,
+        mobil: p.mobil ? String(p.mobil) : null,
         waktuBerangkat: p.waktuBerangkat ? String(p.waktuBerangkat) : undefined,
         waktuPulang: p.waktuPulang ? String(p.waktuPulang) : undefined,
         username: p.username ? String(p.username) : undefined,
         statusPassword: (p.statusPassword as PesertaRihlah['statusPassword']) ?? '-',
+        hasSuratOrtu: Boolean(p.hasSuratOrtu),
+        suratOrtuUrl: p.suratOrtuUrl ? String(p.suratOrtuUrl) : null,
       }));
 
       return { ok: true, data: mapped };
@@ -202,7 +211,10 @@ export const apiService = {
     }
   },
 
-  loginPanitia: async (username: string, password: string): Promise<{ valid: boolean; message: string }> => {
+  loginPanitia: async (
+    username: string, 
+    password: string
+  ): Promise<{ valid: boolean; message: string; panitiaRole?: string; username?: string }> => {
     try {
       const res = await fetch('/api/auth/panitia/login', {
         method: 'POST',
@@ -215,6 +227,31 @@ export const apiService = {
       return {
         valid: res.ok && json.success === true,
         message: String(json.message || json.error || ''),
+        panitiaRole: typeof json.panitiaRole === 'string' ? json.panitiaRole : undefined,
+        username: typeof json.username === 'string' ? json.username : undefined,
+      };
+    } catch {
+      return { valid: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  loginPanitiaGoogle: async (
+    googleIdToken: string
+  ): Promise<{ valid: boolean; message: string; panitiaRole?: string; username?: string }> => {
+    try {
+      const res = await fetch('/api/auth/panitia/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ googleIdToken }),
+      });
+      const json = await bacaJson(res);
+      if (!isObject(json)) return { valid: false, message: `Server error (${res.status}).` };
+
+      return {
+        valid: res.ok && json.success === true,
+        message: String(json.message || json.error || ''),
+        panitiaRole: typeof json.panitiaRole === 'string' ? json.panitiaRole : undefined,
+        username: typeof json.username === 'string' ? json.username : undefined,
       };
     } catch {
       return { valid: false, message: PESAN_KONEKSI };
@@ -487,14 +524,25 @@ export const apiService = {
    * PENTING: meneruskan field 'nama' dari response server agar App.tsx bisa
    * menampilkan nama peserta di notifikasi setelah scan berhasil.
    */
-  prosesScan: async (idPeserta: string, mode: 'berangkat' | 'pulang'): Promise<ScanApiResponse> => {
+  prosesScan: async (
+    idPeserta: string, 
+    mode: 'registrasi_ulang' | 'berangkat' | 'pulang' | 'pulang_dari_lokasi' | 'tiba_di_rumah'
+  ): Promise<ScanApiResponse> => {
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idPeserta,
-          keterangan: mode === 'berangkat' ? 'Scan Keberangkatan' : 'Scan Kepulangan',
+          mode,
+          keterangan:
+            mode === 'berangkat'
+              ? 'Scan Keberangkatan'
+              : mode === 'pulang' || mode === 'pulang_dari_lokasi'
+              ? 'Scan Kepulangan dari Lokasi'
+              : mode === 'tiba_di_rumah'
+              ? 'Scan Tiba di Rumah'
+              : 'Registrasi Ulang',
         }),
       });
       const json = await bacaJson(res);
@@ -664,6 +712,290 @@ export const apiService = {
         return { ok: false, message: errorMsg };
       }
       return { ok: true, message: String(json.message || 'Password panitia berhasil diperbarui.') };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  getAkunPanitia: async (): Promise<{ ok: boolean; data: any[]; message?: string; unauthorized?: boolean }> => {
+    try {
+      const res = await fetch('/api/peserta?resource=panitia');
+      const json = await bacaJson(res);
+      if (res.status === 401) {
+        return { ok: false, data: [], unauthorized: true, message: 'Sesi berakhir atau tidak valid.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success || !Array.isArray(json.data)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat akun panitia (${res.status})`;
+        return { ok: false, data: [], message: errorMsg };
+      }
+      return { ok: true, data: json.data };
+    } catch {
+      return { ok: false, data: [], message: PESAN_KONEKSI };
+    }
+  },
+
+  buatAkunPanitia: async (data: {
+    namaLengkap: string;
+    username: string;
+    password: string;
+    role: 'SUPER_ADMIN' | 'ADMIN_MOBIL';
+    mobil?: string | null;
+  }): Promise<{ ok: boolean; data?: any; message?: string }> => {
+    try {
+      const res = await fetch('/api/peserta?resource=panitia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal membuat akun panitia (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, data: json.data, message: 'Akun panitia berhasil dibuat' };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  getKegiatan: async (): Promise<HasilApi<KegiatanRihlah[]>> => {
+    try {
+      const res = await fetch('/api/peserta?resource=kegiatan');
+      const json = await bacaJson(res);
+      if (res.status === 401) {
+        return { ok: false, data: [], unauthorized: true, message: 'Sesi berakhir atau tidak valid.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success || !Array.isArray(json.data)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat sesi kegiatan (${res.status})`;
+        return { ok: false, data: [], message: errorMsg };
+      }
+      return { ok: true, data: json.data as KegiatanRihlah[] };
+    } catch {
+      return { ok: false, data: [], message: PESAN_KONEKSI };
+    }
+  },
+
+  buatKegiatan: async (nama: string, deskripsi?: string): Promise<{ ok: boolean; data?: KegiatanRihlah; message?: string }> => {
+    try {
+      const res = await fetch('/api/peserta?resource=kegiatan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama, deskripsi }),
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal membuat kegiatan (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, data: json.data as KegiatanRihlah, message: 'Kegiatan berhasil ditambahkan' };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  toggleStatusKegiatan: async (id: string, aktif: boolean): Promise<{ ok: boolean; data?: KegiatanRihlah; message?: string }> => {
+    try {
+      const res = await fetch('/api/peserta?resource=kegiatan', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, aktif }),
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memperbarui status kegiatan (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, data: json.data as KegiatanRihlah, message: 'Status kegiatan berhasil diperbarui' };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  hapusKegiatan: async (id: string): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      const res = await fetch(`/api/peserta?resource=kegiatan&id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal menghapus kegiatan (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: 'Kegiatan berhasil dihapus' };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  getAbsenKegiatan: async (kegiatanId: string): Promise<HasilApi<AbsenKegiatanItem[]>> => {
+    try {
+      const res = await fetch(`/api/peserta?resource=absen_kegiatan&kegiatanId=${encodeURIComponent(kegiatanId)}`);
+      const json = await bacaJson(res);
+      if (res.status === 401) {
+        return { ok: false, data: [], unauthorized: true, message: 'Sesi berakhir atau tidak valid.' };
+      }
+      if (!res.ok || !isObject(json) || !json.success || !Array.isArray(json.data)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat rekap absen (${res.status})`;
+        return { ok: false, data: [], message: errorMsg };
+      }
+      return { ok: true, data: json.data as AbsenKegiatanItem[] };
+    } catch {
+      return { ok: false, data: [], message: PESAN_KONEKSI };
+    }
+  },
+
+  tandaiHadirKegiatan: async (kegiatanId: string, idPeserta: string): Promise<{ ok: boolean; data?: AbsenKegiatanItem; message?: string }> => {
+    try {
+      const res = await fetch('/api/peserta?resource=absen_kegiatan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kegiatanId, idPeserta }),
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal mencatat presensi (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, data: json.data as AbsenKegiatanItem, message: 'Presensi berhasil dicatat' };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  batalkanHadirKegiatan: async (kegiatanId: string, idPeserta: string): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      const res = await fetch(`/api/peserta?resource=absen_kegiatan&kegiatanId=${encodeURIComponent(kegiatanId)}&idPeserta=${encodeURIComponent(idPeserta)}`, {
+        method: 'DELETE',
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal membatalkan presensi (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: 'Presensi berhasil dibatalkan' };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  uploadSuratOrtu: async (file: File): Promise<{ ok: boolean; message?: string; blob?: any }> => {
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (!ext || !['pdf', 'jpg', 'jpeg', 'png'].includes(ext)) {
+        return { ok: false, message: 'Format berkas tidak didukung. Harap unggah file PDF, JPG, atau PNG.' };
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return { ok: false, message: 'Ukuran berkas melebihi batas maksimal 5 MB.' };
+      }
+
+      const blobResult = await upload(`Surat_Ortu_${Date.now()}.${ext}`, file, {
+        access: 'public',
+        handleUploadUrl: '/api/dokumen/upload',
+        clientPayload: JSON.stringify({
+          judul: 'Surat Pernyataan Orang Tua',
+          scope: 'PERSONAL',
+          ukuranByte: file.size,
+        }),
+      });
+
+      return { ok: true, blob: blobResult, message: 'Surat Pernyataan Orang Tua berhasil diunggah!' };
+    } catch (err: any) {
+      console.error('Error uploading surat ortu:', err);
+      const msg = err?.message || 'Gagal mengunggah berkas. Periksa koneksi Anda.';
+      return { ok: false, message: msg };
+    }
+  },
+
+  getPesertaPublik: async (filter?: { sekolah?: string; status?: string }): Promise<HasilApi<PesertaPublikItem[]>> => {
+    try {
+      const params = new URLSearchParams();
+      if (filter?.sekolah) params.set('sekolah', filter.sekolah);
+      if (filter?.status) params.set('status', filter.status);
+
+      const qs = params.toString();
+      const url = `/api/peserta/publik${qs ? `?${qs}` : ''}`;
+      const res = await fetch(url);
+      const json = await bacaJson(res);
+
+      if (!res.ok || !isObject(json) || !json.success || !Array.isArray(json.data)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat daftar peserta publik (${res.status})`;
+        return { ok: false, data: [], message: errorMsg };
+      }
+      return { ok: true, data: json.data as PesertaPublikItem[] };
+    } catch {
+      return { ok: false, data: [], message: PESAN_KONEKSI };
+    }
+  },
+
+  editPeserta: async (id: string, data: Partial<PesertaRihlah>): Promise<{ ok: boolean; message?: string; data?: any }> => {
+    try {
+      const res = await fetch('/api/peserta', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...data }),
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memperbarui data peserta (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: String(json.message || 'Data berhasil diperbarui'), data: json.data };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  hapusPeserta: async (id: string): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      const res = await fetch(`/api/peserta?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal menghapus peserta (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, message: String(json.message || 'Peserta berhasil dihapus') };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
+
+  getBuktiPendaftaran: async (): Promise<{ ok: boolean; data?: BuktiPendaftaranData; message?: string }> => {
+    try {
+      const res = await fetch('/api/peserta/bukti-pendaftaran');
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json) || !json.success) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memuat bukti pendaftaran (${res.status})`;
+        return { ok: false, message: errorMsg };
+      }
+      return { ok: true, data: json.data as BuktiPendaftaranData };
     } catch {
       return { ok: false, message: PESAN_KONEKSI };
     }

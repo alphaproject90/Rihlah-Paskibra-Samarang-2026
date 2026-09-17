@@ -1,107 +1,80 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  Users, 
-  QrCode, 
+  FileCheck, 
   FileText, 
-  Activity, 
-  Settings, 
+  KeyRound, 
   LogOut, 
-  X,
-  ShieldCheck,
-  UserCog,
-  ClipboardCheck
+  X, 
+  ShieldCheck 
 } from 'lucide-react';
-import { PanitiaTabType, PanitiaMenuItem } from './types';
-import { StatsRihlah } from '../../types';
+import { PesertaRihlah } from '../../types';
 
-interface SidebarPanitiaProps {
-  activeTab: PanitiaTabType;
-  onTabChange: (tab: PanitiaTabType) => void;
-  onLogout: () => void;
-  stats: StatsRihlah;
-  isOpenMobile: boolean;
-  onCloseMobile: () => void;
-  isSuperAdmin?: boolean;    // Kontrol visibilitas menu admin
-  username?: string;         // Ditampilkan di user info bawah sidebar
-  panitiaRole?: string;      // Badge role di user info
+export type PesertaTabType = 'ringkasan' | 'bukti' | 'dokumen' | 'password';
+
+export interface PesertaMenuItem {
+  id: PesertaTabType;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string | number;
+  badgeColor?: string;
+  description: string;
 }
 
-export const SidebarPanitia: React.FC<SidebarPanitiaProps> = ({
+interface SidebarPesertaProps {
+  activeTab: PesertaTabType;
+  onTabChange: (tab: PesertaTabType) => void;
+  onLogout: () => void;
+  peserta: PesertaRihlah;
+  isOpenMobile: boolean;
+  onCloseMobile: () => void;
+}
+
+export const SidebarPeserta: React.FC<SidebarPesertaProps> = ({
   activeTab,
   onTabChange,
   onLogout,
-  stats,
+  peserta,
   isOpenMobile,
   onCloseMobile,
-  isSuperAdmin = true,
-  username,
-  panitiaRole,
 }) => {
-  const statsAktif = (stats as any)?.data ?? stats ?? { total: 0, berangkat: 0 };
-  const totalPeserta = statsAktif.total ?? statsAktif.ikut ?? 0;
-  const totalBerangkat = statsAktif.berangkat ?? statsAktif.sudahBerangkat ?? 0;
-
-  const menuItems: PanitiaMenuItem[] = [
+  const menuItems: PesertaMenuItem[] = [
     {
       id: 'ringkasan',
-      label: 'Ringkasan',
+      label: 'Ringkasan & QR',
       icon: LayoutDashboard,
-      description: 'Statistik & status utama',
+      description: 'Profil, QR tiket & checkpoint',
     },
     {
-      id: 'peserta',
-      label: 'Data & Rekap',
-      icon: Users,
-      badge: totalPeserta > 0 ? totalPeserta : undefined,
-      badgeColor: 'bg-red-500/20 text-red-300 border border-red-500/30',
-      description: 'Daftar peserta & export CSV',
-    },
-    {
-      id: 'scanner',
-      label: 'Presensi QR',
-      icon: QrCode,
-      badge: totalPeserta > 0 ? `${totalBerangkat}/${totalPeserta}` : undefined,
-      badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
-      description: 'Pemindai kamera & QR code',
-    },
-    {
-      id: 'kegiatan',
-      label: 'Absen Kegiatan',
-      icon: ClipboardCheck,
-      description: 'Presensi sesi giat lapangan',
+      id: 'bukti',
+      label: 'Bukti Pendaftaran',
+      icon: FileCheck,
+      description: 'Slip tanda bukti resmi',
     },
     {
       id: 'dokumen',
-      label: 'Dokumen PDF',
+      label: 'Dokumen Saya',
       icon: FileText,
-      description: 'Berkas global & personal',
+      badge: !peserta.hasSuratOrtu ? 'Surat ⏳' : 'Lengkap ✅',
+      badgeColor: !peserta.hasSuratOrtu 
+        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+      description: 'Surat ortu & berkas umum',
     },
     {
-      id: 'log',
-      label: 'Log Sistem',
-      icon: Activity,
-      description: 'Audit trail & aktivitas',
+      id: 'password',
+      label: 'Ganti Password',
+      icon: KeyRound,
+      description: 'Keamanan kata sandi akun',
     },
-    {
-      id: 'pengaturan',
-      label: 'Pengaturan',
-      icon: Settings,
-      description: 'Kontrol sistem & password',
-    },
-    // Menu 'Kelola Akun' hanya ditampilkan untuk Super Admin
-    ...(isSuperAdmin ? [{
-      id: 'admin' as PanitiaTabType,
-      label: 'Kelola Akun',
-      icon: UserCog,
-      description: 'Manajemen akun panitia',
-    }] : []),
   ];
 
-  const handleSelectTab = (tab: PanitiaTabType) => {
+  const handleSelectTab = (tab: PesertaTabType) => {
     onTabChange(tab);
     onCloseMobile();
   };
+
+  const initialNama = (peserta.nama || peserta.namaLengkap || 'P').charAt(0).toUpperCase();
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-slate-900 text-slate-100 select-none">
@@ -123,8 +96,8 @@ export const SidebarPanitia: React.FC<SidebarPanitiaProps> = ({
               <h2 className="text-sm font-black tracking-tight text-white leading-none">
                 Giat Rihlah 2026
               </h2>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-600/30 text-red-300 border border-red-500/30">
-                Panitia
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 border border-blue-500/30">
+                Peserta
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-medium mt-1">
@@ -147,7 +120,7 @@ export const SidebarPanitia: React.FC<SidebarPanitiaProps> = ({
       {/* Navigation List */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 custom-scrollbar">
         <div className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-          Menu Utama
+          Menu Peserta
         </div>
         {menuItems.map((item) => {
           const isActive = activeTab === item.id;
@@ -157,7 +130,7 @@ export const SidebarPanitia: React.FC<SidebarPanitiaProps> = ({
             <button
               key={item.id}
               type="button"
-              id={`panitia-nav-${item.id}`}
+              id={`peserta-nav-${item.id}`}
               onClick={() => handleSelectTab(item.id)}
               className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left transition-all duration-150 cursor-pointer ${
                 isActive
@@ -201,19 +174,15 @@ export const SidebarPanitia: React.FC<SidebarPanitiaProps> = ({
       <div className="p-3 border-t border-slate-800/80 shrink-0 bg-slate-950/40">
         <div className="px-3 py-2 flex items-center justify-between mb-2">
           <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-red-400">
-              {(username?.[0] ?? 'P').toUpperCase()}
+            <div className="w-8 h-8 rounded-lg bg-blue-900/60 border border-blue-700/60 flex items-center justify-center text-xs font-black text-blue-300">
+              {initialNama}
             </div>
             <div className="truncate">
               <span className="text-xs font-bold text-slate-200 block truncate leading-none">
-                {username ?? 'Panitia'}
+                {peserta.nama || peserta.namaLengkap}
               </span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block ${
-                panitiaRole === 'SUPER_ADMIN'
-                  ? 'bg-red-600/30 text-red-300'
-                  : 'bg-blue-600/30 text-blue-300'
-              }`}>
-                {panitiaRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin Mobil'}
+              <span className="text-[10px] text-slate-400 block truncate mt-0.5 font-mono">
+                {peserta.id}
               </span>
             </div>
           </div>
@@ -221,12 +190,12 @@ export const SidebarPanitia: React.FC<SidebarPanitiaProps> = ({
 
         <button
           type="button"
-          id="panitia-btn-logout"
+          id="peserta-btn-logout"
           onClick={onLogout}
           className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl bg-red-950/40 hover:bg-red-600 text-red-300 hover:text-white border border-red-800/40 hover:border-red-600 transition-all duration-150 text-xs font-bold cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
-          <span>Keluar dari Dasbor</span>
+          <span>Keluar Akun</span>
         </button>
       </div>
     </div>
