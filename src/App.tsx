@@ -234,43 +234,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // 3. Reset / Ganti Password
-  const handleSubmitGantiPassword = async (
-    identifier: string,
-    noWa: string,
-    newPass: string,
-    confirmPass: string
-  ) => {
-    if (!identifier.trim()) {
-      tampilkanNotif('Harap masukkan Username atau ID Peserta.', 'error');
-      return;
-    }
-    if (!noWa.trim()) {
-      tampilkanNotif('Harap masukkan Nomor WhatsApp terdaftar.', 'error');
-      return;
-    }
-    if (!newPass || newPass !== confirmPass) {
-      tampilkanNotif('Konfirmasi password tidak cocok!', 'error');
-      return;
-    }
-    if (!STRONG_PASSWORD_REGEX.test(newPass)) {
-      tampilkanNotif('Password minimal 8 karakter kombinasi huruf besar, kecil, angka, dan simbol.', 'error');
-      return;
-    }
 
-    setLoading(true);
-    try {
-      const res = await apiService.resetPasswordLupa(identifier.trim(), noWa.trim(), newPass);
-      if (res.success || res.status === 'success') {
-        tampilkanNotif(res.message || 'Password berhasil diperbarui! Silakan login kembali.', 'success');
-        navigasiKe('login-peserta');
-      } else {
-        tampilkanNotif(res.message || res.error || 'Gagal mengubah password.', 'error');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleKeluarPeserta = async () => {
     await apiService.logout();
@@ -401,9 +365,11 @@ export const App: React.FC = () => {
 
           {halamanAktif === 'ganti-password' && (
             <GantiPasswordView
-              onSubmit={handleSubmitGantiPassword}
+              onSuccess={() => {
+                tampilkanNotif('Password berhasil diperbarui! Silakan login kembali.', 'success');
+                navigasiKe('login-peserta');
+              }}
               onBatal={() => navigasiKe('login-peserta')}
-              loading={loading}
             />
           )}
 

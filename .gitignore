@@ -12,3 +12,5 @@ tsconfig.tsbuildinfo
 .vercel
 .env*
 *.zip
+*.sql
+backup-db/

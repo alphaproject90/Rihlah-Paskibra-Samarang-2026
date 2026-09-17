@@ -19,6 +19,30 @@ export interface HasilApi<T> {
   unauthorized?: boolean;
 }
 
+export interface RequestOtpResponseData {
+  maskedPhone: string;
+  requestId: string;
+}
+
+export interface PanitiaPendingResetItem {
+  id: string;
+  idPeserta: string;
+  nama: string;
+  unit: string;
+  noWaTersensor: string;
+  status: 'PENDING' | 'SENT' | 'USED' | 'EXPIRED' | 'CANCELLED';
+  attempts: number;
+  createdAt: string;
+  sentAt?: string | null;
+  sentBy?: string | null;
+  expiresAt: string;
+}
+
+export interface PanitiaWaLinkResponseData {
+  waLink: string;
+  expiresAt: string;
+}
+
 const PESAN_KONEKSI = 'Gagal terhubung ke server. Periksa koneksi Anda.';
 
 async function bacaJson(res: Response): Promise<unknown> {
@@ -282,12 +306,19 @@ export const apiService = {
     }
   },
 
-  resetPasswordLupa: async (identifier: string, noWa: string, newPass: string): Promise<ApiResponse<null>> => {
+  /**
+   * Langkah 1: Peserta mengajukan permintaan reset password & generate OTP
+   */
+  requestOtpReset: async (
+    identifier: string,
+    noWa: string,
+    unit?: string
+  ): Promise<ApiResponse<RequestOtpResponseData>> => {
     try {
-      const res = await fetch('/api/auth/ganti-password', {
+      const res = await fetch('/api/auth/ganti-password?action=request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, noWa, newPassword: newPass }),
+        body: JSON.stringify({ identifier, noWa, unit }),
       });
       const json = await bacaJson(res);
       if (!isObject(json)) {
@@ -296,7 +327,150 @@ export const apiService = {
       }
 
       const isSuccess = Boolean(json.success);
-      const msg = String(json.message || json.error || (isSuccess ? 'Password berhasil direset' : 'Gagal mereset password'));
+      const msg = String(json.message || json.error || (isSuccess ? 'OTP berhasil diminta' : 'Gagal meminta OTP'));
+      return {
+        success: isSuccess,
+        status: isSuccess ? 'success' : 'error',
+        message: msg,
+        error: !isSuccess ? msg : undefined,
+        data: isSuccess ? {
+          maskedPhone: String(json.maskedPhone || ''),
+          requestId: String(json.requestId || ''),
+        } : undefined,
+      };
+    } catch {
+      return { success: false, status: 'error', error: PESAN_KONEKSI, message: PESAN_KONEKSI };
+    }
+  },
+
+  /**
+   * Langkah 6: Peserta memverifikasi OTP dan menyimpan password baru
+   */
+  verifyOtpReset: async (
+    requestId: string,
+    otp: string,
+    newPass: string
+  ): Promise<ApiResponse<null>> => {
+    try {
+      const res = await fetch('/api/auth/ganti-password?action=verify-otp-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, otp, newPassword: newPass }),
+      });
+      const json = await bacaJson(res);
+      if (!isObject(json)) {
+        const errorMsg = `Server error (${res.status}).`;
+        return { success: false, status: 'error', error: errorMsg, message: errorMsg };
+      }
+
+      const isSuccess = Boolean(json.success);
+      const msg = String(json.message || json.error || (isSuccess ? 'Password berhasil diperbarui' : 'Gagal memperbarui password'));
+      return {
+        success: isSuccess,
+        status: isSuccess ? 'success' : 'error',
+        message: msg,
+        error: !isSuccess ? msg : undefined,
+      };
+    } catch {
+      return { success: false, status: 'error', error: PESAN_KONEKSI, message: PESAN_KONEKSI };
+    }
+  },
+
+  /**
+   * Langkah 4a: Panitia mengambil daftar antrean permohonan reset password peserta
+   */
+  getPanitiaPendingResets: async (): Promise<ApiResponse<PanitiaPendingResetItem[]>> => {
+    try {
+      const res = await fetch('/api/auth/ganti-password?action=panitia-pending-resets');
+      const json = await bacaJson(res);
+      if (!isObject(json)) {
+        const errorMsg = `Server error (${res.status}).`;
+        return { success: false, status: 'error', error: errorMsg, message: errorMsg, data: [] };
+      }
+
+      const isSuccess = Boolean(json.success);
+      const rawData = Array.isArray(json.data) ? json.data : [];
+      const mappedData: PanitiaPendingResetItem[] = rawData.map((item: any) => ({
+        id: String(item.id || ''),
+        idPeserta: String(item.idPeserta || ''),
+        nama: String(item.nama || ''),
+        unit: String(item.unit || '-'),
+        noWaTersensor: String(item.noWaTersensor || ''),
+        status: item.status || 'PENDING',
+        attempts: Number(item.attempts || 0),
+        createdAt: String(item.createdAt || ''),
+        sentAt: item.sentAt ? String(item.sentAt) : null,
+        sentBy: item.sentBy ? String(item.sentBy) : null,
+        expiresAt: String(item.expiresAt || ''),
+      }));
+
+      return {
+        success: isSuccess,
+        status: isSuccess ? 'success' : 'error',
+        message: String(json.message || ''),
+        error: !isSuccess ? String(json.error || 'Gagal memuat antrean reset') : undefined,
+        data: mappedData,
+      };
+    } catch {
+      return { success: false, status: 'error', error: PESAN_KONEKSI, message: PESAN_KONEKSI, data: [] };
+    }
+  },
+
+  /**
+   * Langkah 4b: Panitia men-generate tautan WhatsApp wa.me untuk mengirimkan OTP
+   */
+  generatePanitiaWaLink: async (
+    requestId: string
+  ): Promise<ApiResponse<PanitiaWaLinkResponseData>> => {
+    try {
+      const res = await fetch('/api/auth/ganti-password?action=panitia-get-wa-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+      });
+      const json = await bacaJson(res);
+      if (!isObject(json)) {
+        const errorMsg = `Server error (${res.status}).`;
+        return { success: false, status: 'error', error: errorMsg, message: errorMsg };
+      }
+
+      const isSuccess = Boolean(json.success);
+      const msg = String(json.message || json.error || (isSuccess ? 'Link WhatsApp berhasil dibuat' : 'Gagal membuat link WhatsApp'));
+      return {
+        success: isSuccess,
+        status: isSuccess ? 'success' : 'error',
+        message: msg,
+        error: !isSuccess ? msg : undefined,
+        data: isSuccess ? {
+          waLink: String(json.waLink || ''),
+          expiresAt: String(json.expiresAt || ''),
+        } : undefined,
+      };
+    } catch {
+      return { success: false, status: 'error', error: PESAN_KONEKSI, message: PESAN_KONEKSI };
+    }
+  },
+
+  /**
+   * Revisi #2: Panitia membatalkan antrean permohonan reset peserta
+   */
+  cancelPanitiaReset: async (
+    requestId: string
+  ): Promise<ApiResponse<null>> => {
+    try {
+      const res = await fetch('/api/auth/ganti-password?action=panitia-cancel-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+      });
+      const json = await bacaJson(res);
+      if (!isObject(json)) {
+        const errorMsg = `Server error (${res.status}).`;
+        return { success: false, status: 'error', error: errorMsg, message: errorMsg };
+      }
+
+      const isSuccess = Boolean(json.success);
+      const msg = String(json.message || json.error || (isSuccess ? 'Permohonan berhasil dibatalkan' : 'Gagal membatalkan permohonan'));
       return {
         success: isSuccess,
         status: isSuccess ? 'success' : 'error',

@@ -27,6 +27,29 @@ model Peserta {
   createdAt       DateTime  @default(now())
   logs            LogScan[]
   dokumen         Dokumen[]
+  resetRequests   ResetPasswordRequest[]
+}
+
+model ResetPasswordRequest {
+  id           String    @id @default(cuid())
+  idPeserta    String
+  peserta      Peserta   @relation(fields: [idPeserta], references: [idPeserta], onDelete: Cascade)
+  nama         String
+  noWaTujuan   String    // Nomor WA terdaftar di database (waPribadi / waDarurat)
+  otpHash      String    // Keyed-hash HMAC-SHA256 untuk verifikasi aman anti brute-force offline
+  otpEncrypted String    // Terenkripsi AES-256-GCM dengan OTP_ENCRYPTION_KEY untuk dekripsi link panitia
+  status       String    @default("PENDING") // "PENDING" | "SENT" | "USED" | "EXPIRED" | "CANCELLED"
+  attempts     Int       @default(0)         // Counter salah tebak OTP (maksimal 3 kali)
+  expiresAt    DateTime  // Batas kedaluwarsa OTP (10 menit sejak panitia membuat/mengirim)
+  sentAt       DateTime? // Waktu panitia mengklik tombol buka link WhatsApp
+  sentBy       String?   // Username panitia yang mengirimkan pesan
+  usedAt       DateTime? // Waktu peserta berhasil memverifikasi OTP dan password baru
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([idPeserta])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model LogScan {
