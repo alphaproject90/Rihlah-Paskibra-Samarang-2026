@@ -77,10 +77,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         await resetRateLimit(rateLimitKey);
+
+        const akunDb = await prisma.panitia.upsert({
+          where: { username: payload.email },
+          update: { aktif: true, role: 'SUPER_ADMIN' },
+          create: {
+            username: payload.email,
+            passwordHash: '-', // akun Google OAuth
+            namaLengkap: payload.name || 'Super Admin (Google)',
+            role: 'SUPER_ADMIN',
+            aktif: true,
+          },
+        });
+
         const token = await signToken(
           {
             role: 'panitia',
-            panitiaId: null,
+            panitiaId: akunDb.id,
             username: payload.email,
             panitiaRole: 'SUPER_ADMIN' as const,
             mobil: null,
