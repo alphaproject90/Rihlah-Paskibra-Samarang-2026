@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export interface QrScannerProps {
-  scanMode?: 'berangkat' | 'pulang';
+  scanMode?: 'registrasi_ulang' | 'berangkat' | 'pulang' | 'pulang_dari_lokasi' | 'tiba_di_rumah';
   onKembali?: () => void;
   onSubmitScan: (idPeserta: string) => Promise<void>;
   loading?: boolean;
@@ -337,7 +337,15 @@ export const QrScanner: React.FC<QrScannerProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-black text-slate-900 font-heading flex items-center gap-2">
-            Pemindai {scanMode === 'berangkat' ? 'Keberangkatan' : 'Kepulangan'}
+            Pemindai {
+              scanMode === 'registrasi_ulang'
+                ? 'Registrasi Ulang'
+                : scanMode === 'berangkat'
+                ? 'Keberangkatan'
+                : scanMode === 'pulang_dari_lokasi' || scanMode === 'pulang'
+                ? 'Kepulangan dari Lokasi'
+                : 'Tiba di Rumah'
+            }
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
               Panitia
             </span>

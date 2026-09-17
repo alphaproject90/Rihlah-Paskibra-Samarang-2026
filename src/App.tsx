@@ -33,8 +33,16 @@ const STATS_KOSONG: StatsRihlah = { total: 0, tidakIkut: 0, berangkat: 0, pulang
 export const App: React.FC = () => {
   const [halamanAktif, setHalamanAktif] = useState<HalamanType>('home');
   const [isPanitia, setIsPanitia] = useState<boolean>(false);
-  const [scanMode, setScanMode] = useState<'berangkat' | 'pulang'>('berangkat');
+  const [scanMode, setScanMode] = useState<'registrasi_ulang' | 'berangkat' | 'pulang' | 'pulang_dari_lokasi' | 'tiba_di_rumah'>('berangkat');
   const [dashboardPeserta, setDashboardPeserta] = useState<PesertaRihlah | null>(null);
+
+  // State role & username panitia
+  const [panitiaRole, setPanitiaRole] = useState<string | undefined>(() => {
+    return sessionStorage.getItem('rihlah_panitia_role') || undefined;
+  });
+  const [panitiaUsername, setPanitiaUsername] = useState<string | undefined>(() => {
+    return sessionStorage.getItem('rihlah_panitia_username') || undefined;
+  });
 
   // State tab internal panitia dengan lazy initializer dari sessionStorage
   const [panitiaTab, setPanitiaTab] = useState<PanitiaTabType>(() => {
@@ -76,9 +84,13 @@ export const App: React.FC = () => {
   const akhiriSesiPanitia = useCallback(
     (pesan: string) => {
       setIsPanitia(false);
+      setPanitiaRole(undefined);
+      setPanitiaUsername(undefined);
       setPesertaList([]);
       sessionStorage.removeItem('rihlah_panitia_active');
       sessionStorage.removeItem('rihlah_panitia_tab');
+      sessionStorage.removeItem('rihlah_panitia_role');
+      sessionStorage.removeItem('rihlah_panitia_username');
       tampilkanNotif(pesan, 'error');
       navigasiKeRaw('login-panitia');
     },
@@ -151,10 +163,18 @@ export const App: React.FC = () => {
           setPesertaList(res.data);
           const savedTab = sessionStorage.getItem('rihlah_panitia_tab') as PanitiaTabType;
           if (savedTab) setPanitiaTab(savedTab);
+          const savedRole = sessionStorage.getItem('rihlah_panitia_role');
+          if (savedRole) setPanitiaRole(savedRole);
+          const savedUsername = sessionStorage.getItem('rihlah_panitia_username');
+          if (savedUsername) setPanitiaUsername(savedUsername);
         } else if (res.unauthorized) {
           sessionStorage.removeItem('rihlah_panitia_active');
           sessionStorage.removeItem('rihlah_panitia_tab');
+          sessionStorage.removeItem('rihlah_panitia_role');
+          sessionStorage.removeItem('rihlah_panitia_username');
           setIsPanitia(false);
+          setPanitiaRole(undefined);
+          setPanitiaUsername(undefined);
         }
       });
     }
@@ -182,7 +202,9 @@ export const App: React.FC = () => {
 
     if (hal === 'peserta') {
       muatStatistik();
-      muatPeserta();
+      if (isPanitia) {
+        muatPeserta();
+      }
     }
   };
 
@@ -251,9 +273,17 @@ export const App: React.FC = () => {
   const handleLoginPanitia = async (username: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const { valid, message } = await apiService.loginPanitia(username, password);
+      const { valid, message, panitiaRole: role, username: uname } = await apiService.loginPanitia(username, password);
       if (valid) {
         setIsPanitia(true);
+        if (role) {
+          setPanitiaRole(role);
+          sessionStorage.setItem('rihlah_panitia_role', role);
+        }
+        if (uname) {
+          setPanitiaUsername(uname);
+          sessionStorage.setItem('rihlah_panitia_username', uname);
+        }
         sessionStorage.setItem('rihlah_panitia_active', 'true');
         sessionStorage.setItem('rihlah_panitia_tab', panitiaTab);
         tampilkanNotif('Akses panitia berhasil diverifikasi!', 'success');
@@ -268,14 +298,79 @@ export const App: React.FC = () => {
     }
   };
 
+  // 4B. Login Panitia via Google OAuth (Super Admin)
+  const handleLoginPanitiaGoogle = async (): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        const res = await apiService.loginPanitiaGoogle('unconfigured');
+        tampilkanNotif(res.message || 'Google Login belum dikonfigurasi oleh administrator.', 'error');
+        return false;
+      }
+
+      return await new Promise<boolean>((resolve) => {
+        if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+          const google = (window as any).google;
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (response: { credential?: string }) => {
+              if (response?.credential) {
+                const res = await apiService.loginPanitiaGoogle(response.credential);
+                if (res.valid) {
+                  setIsPanitia(true);
+                  if (res.panitiaRole) {
+                    setPanitiaRole(res.panitiaRole);
+                    sessionStorage.setItem('rihlah_panitia_role', res.panitiaRole);
+                  }
+                  if (res.username) {
+                    setPanitiaUsername(res.username);
+                    sessionStorage.setItem('rihlah_panitia_username', res.username);
+                  }
+                  sessionStorage.setItem('rihlah_panitia_active', 'true');
+                  sessionStorage.setItem('rihlah_panitia_tab', panitiaTab);
+                  tampilkanNotif('Login Google Super Admin berhasil!', 'success');
+                  await muatStatistik();
+                  await muatPeserta();
+                  resolve(true);
+                } else {
+                  tampilkanNotif(res.message || 'Login Google gagal.', 'error');
+                  resolve(false);
+                }
+              } else {
+                tampilkanNotif('Gagal menerima kredensial Google.', 'error');
+                resolve(false);
+              }
+            },
+          });
+          google.accounts.id.prompt();
+        } else {
+          apiService.loginPanitiaGoogle('dummy_token').then((res) => {
+            tampilkanNotif(res.message || 'Google Identity Services belum dimuat atau belum dikonfigurasi.', 'error');
+            resolve(false);
+          });
+        }
+      });
+    } catch {
+      tampilkanNotif('Gagal memproses login Google.', 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogoutPanitia = async () => {
     // Cookie sesi wajib dihapus di server — tanpa ini token tetap sah 24 jam
     // meski UI sudah kelihatan logout.
     await apiService.logout();
     setIsPanitia(false);
+    setPanitiaRole(undefined);
+    setPanitiaUsername(undefined);
     setPesertaList([]);
     sessionStorage.removeItem('rihlah_panitia_active');
     sessionStorage.removeItem('rihlah_panitia_tab');
+    sessionStorage.removeItem('rihlah_panitia_role');
+    sessionStorage.removeItem('rihlah_panitia_username');
     // Bersihkan state peserta juga — mencegah data bocor ke sesi selanjutnya
     setDashboardPeserta(null);
     tampilkanNotif('Sesi panitia diakhiri.', 'info');
@@ -283,7 +378,7 @@ export const App: React.FC = () => {
   };
 
   // 5. Buka Scanner
-  const handleBukaScanner = (mode: 'berangkat' | 'pulang') => {
+  const handleBukaScanner = (mode: 'registrasi_ulang' | 'berangkat' | 'pulang' | 'pulang_dari_lokasi' | 'tiba_di_rumah') => {
     // Guard clause: pastikan rute hanya bisa diakses jika panitia sudah login (valid)
     if (!isPanitia) {
       tampilkanNotif('Fitur scanner hanya dapat diakses oleh panitia terotentikasi.', 'error');
@@ -305,7 +400,14 @@ export const App: React.FC = () => {
         return;
       }
       if (res.success || res.status === 'success') {
-        const sesi = scanMode === 'berangkat' ? 'Keberangkatan' : 'Kepulangan';
+        const sesi =
+          scanMode === 'registrasi_ulang'
+            ? 'Registrasi Ulang'
+            : scanMode === 'berangkat'
+            ? 'Keberangkatan'
+            : scanMode === 'pulang' || scanMode === 'pulang_dari_lokasi'
+            ? 'Kepulangan dari Lokasi'
+            : 'Tiba di Rumah';
         // res.nama sekarang tersedia — prosesScan sudah meneruskannya dari server
         const namaTampil = res.data?.nama || res.nama || idPeserta;
         tampilkanNotif(`Presensi ${sesi} Berhasil: ${namaTampil} (${idPeserta})`, 'success');
@@ -319,25 +421,25 @@ export const App: React.FC = () => {
     }
   };
 
-  const isPanitiaDashboard = halamanAktif === 'login-panitia' && isPanitia;
+  const isFullWidthDashboard = (halamanAktif === 'login-panitia' && isPanitia) || (halamanAktif === 'dashboard-peserta' && Boolean(dashboardPeserta));
 
   return (
     <div className="text-slate-800 antialiased min-h-screen bg-slate-50 sm:bg-gradient-to-br sm:from-slate-100 sm:to-slate-300 sm:py-6 sm:px-4 flex flex-col justify-center items-center">
       {/* Toast Notification */}
       <ToastNotif notif={notif} />
 
-      {/* Main Container Card: Lebar penuh (max-w-7xl) saat dasbor panitia aktif, max-w-lg untuk halaman publik */}
+      {/* Main Container Card: Lebar penuh (max-w-7xl) saat dasbor aktif, max-w-4xl untuk statistik peserta publik, max-w-lg untuk form publik */}
       <div className={`w-full mx-auto bg-white sm:rounded-[2rem] sm:shadow-2xl overflow-hidden min-h-screen sm:min-h-0 border border-slate-100 relative flex flex-col ${
-        isPanitiaDashboard ? 'max-w-7xl sm:rounded-3xl border-slate-200 shadow-2xl' : 'max-w-lg'
+        isFullWidthDashboard ? 'max-w-7xl sm:rounded-3xl border-slate-200 shadow-2xl' : (halamanAktif === 'peserta' ? 'max-w-4xl' : 'max-w-lg')
       }`}>
-        {/* KOP SURAT - hanya untuk halaman selain dasbor panitia */}
-        {!isPanitiaDashboard && <KopSurat />}
+        {/* KOP SURAT - hanya untuk halaman selain dasbor */}
+        {!isFullWidthDashboard && <KopSurat />}
 
-        {/* HEADER MERAH - hanya untuk halaman selain dasbor panitia */}
-        {!isPanitiaDashboard && <HeaderMerah halamanAktif={halamanAktif} onKembali={kembali} />}
+        {/* HEADER MERAH - hanya untuk halaman selain dasbor */}
+        {!isFullWidthDashboard && <HeaderMerah halamanAktif={halamanAktif} onKembali={kembali} />}
 
         {/* MAIN CONTENT AREA */}
-        <div className={isPanitiaDashboard ? "relative z-0 flex-1 flex flex-col p-0" : "p-5 sm:p-8 relative z-0 flex-1 flex flex-col"}>
+        <div className={isFullWidthDashboard ? "relative z-0 flex-1 flex flex-col p-0" : "p-5 sm:p-8 relative z-0 flex-1 flex flex-col"}>
           {halamanAktif === 'home' && (
             <HomeView onNavigasi={navigasiKe} pendaftaranDibuka={stats?.pendaftaranDibuka ?? true} />
           )}
@@ -380,10 +482,10 @@ export const App: React.FC = () => {
             />
           )}
 
-          {halamanAktif === 'peserta' && isPanitia && (
+          {halamanAktif === 'peserta' && (
             <PesertaStatistikView
               stats={stats}
-              pesertaList={pesertaList}
+              pesertaList={isPanitia ? pesertaList : []}
               onOpenLoginPeserta={() => navigasiKe('login-peserta')}
             />
           )}
@@ -393,6 +495,7 @@ export const App: React.FC = () => {
               isPanitia={isPanitia}
               stats={stats}
               onLoginPanitia={handleLoginPanitia}
+              onLoginGoogle={handleLoginPanitiaGoogle}
               onLogout={handleLogoutPanitia}
               onRefresh={muatStatistik}
               onRefreshPeserta={muatPeserta}
@@ -402,12 +505,14 @@ export const App: React.FC = () => {
               panitiaTab={panitiaTab}
               onTabChange={handleSetPanitiaTab}
               pesertaList={pesertaList}
+              panitiaRole={panitiaRole}
+              panitiaUsername={panitiaUsername}
             />
           )}
 
           {halamanAktif === 'scanner' && (
             <QrScanner
-              scanMode={scanMode}
+              scanMode={scanMode as any}
               onKembali={() => {
                 navigasiKe('login-panitia');
                 handleSetPanitiaTab('scanner');
