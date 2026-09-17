@@ -319,17 +319,18 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
                 </div>
               </div>
 
-              {/* Shortcut Banner to Rekap Peserta */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-5 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-red-400 shrink-0">
+              {/* Shortcut Banner to Rekap Peserta - Dynamic Red Gradient & Frosted */}
+              <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 rounded-2xl p-5 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl shadow-red-600/20 relative overflow-hidden">
+                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center space-x-3.5 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-inner">
                     <Users className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold leading-tight">
+                    <h3 className="text-sm sm:text-base font-black leading-tight">
                       Data Peserta &amp; Rekap Realtime
                     </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-rose-100 font-medium mt-0.5">
                       {pesertaList.length > 0 
                         ? `Tercatat ${pesertaList.length} peserta aktif dalam database.`
                         : 'Kelola data lengkap peserta & export rekap CSV.'}
@@ -339,7 +340,7 @@ export const DashboardPanitiaShell: React.FC<DashboardPanitiaShellProps> = ({
                 <button
                   type="button"
                   onClick={() => onTabChange('peserta')}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition active:scale-95 cursor-pointer shrink-0"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white hover:bg-rose-50 text-red-700 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md active:scale-95 cursor-pointer shrink-0 relative z-10"
                 >
                   <span>Buka Rekap Lengkap</span>
                   <ArrowRight className="w-4 h-4" />
