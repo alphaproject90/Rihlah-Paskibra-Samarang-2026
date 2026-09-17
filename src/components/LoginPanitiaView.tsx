@@ -52,15 +52,18 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
 
   if (!isPanitia) {
     return (
-      <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl space-y-4 my-auto">
-        <div className="text-center">
-          <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-2 text-slate-300 shadow-inner">
+      <div className="bg-white text-slate-800 p-6 sm:p-8 rounded-3xl shadow-2xl border border-rose-100 space-y-4 my-auto relative overflow-hidden">
+        {/* Top Accent Gradient Bar */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+
+        <div className="text-center pt-1">
+          <div className="w-12 h-12 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center mx-auto mb-2 text-red-600 shadow-xs">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h3 className="text-xl font-black">Autentikasi Panitia</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <h3 className="text-xl font-black text-slate-900">Autentikasi Panitia</h3>
+          <p className="text-xs text-slate-500 mt-1">
             Masuk dengan akun panitia untuk mengakses sistem
           </p>
         </div>
@@ -75,7 +78,7 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
               placeholder="Username"
               autoComplete="username"
               required
-              className="w-full bg-slate-800 text-white p-4 rounded-xl border border-slate-700 focus:ring-2 focus:ring-red-500 outline-none"
+              className="w-full bg-slate-50 hover:bg-white focus:bg-white text-slate-900 placeholder:text-slate-400 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition"
             />
           </div>
 
@@ -88,14 +91,14 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
               placeholder="Password"
               autoComplete="current-password"
               required
-              className="w-full bg-slate-800 text-white p-4 pr-12 rounded-xl border border-slate-700 focus:ring-2 focus:ring-red-500 outline-none"
+              className="w-full bg-slate-50 hover:bg-white focus:bg-white text-slate-900 placeholder:text-slate-400 p-4 pr-12 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition"
             />
             <button
               type="button"
               id="login-panitia-toggle-password-btn"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer p-1"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition cursor-pointer p-1"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -104,7 +107,7 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
           <button
             type="submit"
             disabled={loading || !usernameInput || !passwordInput}
-            className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] font-bold p-4 rounded-xl shadow-lg transition disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
+            className="w-full bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-700 hover:to-rose-700 active:scale-[0.98] text-white font-bold p-4 rounded-xl shadow-lg shadow-red-600/25 transition disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
           >
             {loading && (
               <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
@@ -118,15 +121,15 @@ export const LoginPanitiaView: React.FC<LoginPanitiaViewProps> = ({
           {onLoginGoogle && (
             <div className="space-y-3 pt-2">
               <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-700 w-full" />
-                <span className="bg-slate-900 px-3 text-[11px] text-slate-400 font-medium">atau</span>
+                <div className="border-t border-slate-200 w-full" />
+                <span className="bg-white px-3 text-[11px] text-slate-400 font-medium">atau</span>
               </div>
               <button
                 type="button"
                 id="btn-login-google-panitia"
                 onClick={onLoginGoogle}
                 disabled={loading}
-                className="w-full bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-white font-bold p-3.5 rounded-xl border border-slate-700 transition disabled:opacity-50 flex items-center justify-center space-x-2.5 cursor-pointer text-sm"
+                className="w-full bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-700 font-bold p-3.5 rounded-xl border border-slate-200 shadow-xs hover:border-slate-300 transition disabled:opacity-50 flex items-center justify-center space-x-2.5 cursor-pointer text-sm"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

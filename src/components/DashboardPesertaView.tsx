@@ -201,21 +201,21 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-slate-50">
         {/* Top Mobile Bar */}
-        <header className="lg:hidden bg-slate-900 text-white px-4 py-3.5 flex items-center justify-between border-b border-slate-800 shrink-0">
+        <header className="lg:hidden bg-white/95 backdrop-blur-md text-slate-800 px-4 py-3.5 flex items-center justify-between border-b border-rose-100 shadow-xs shrink-0">
           <div className="flex items-center space-x-3">
             <button
               type="button"
               onClick={() => setIsOpenMobile(true)}
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-rose-50 transition cursor-pointer"
               aria-label="Buka Menu"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xs font-bold text-slate-100 leading-tight">
+              <h1 className="text-xs font-bold text-slate-900 leading-tight">
                 Dasbor Peserta
               </h1>
-              <p className="text-[10px] text-slate-400 font-mono truncate max-w-[160px]">
+              <p className="text-[10px] text-slate-500 font-mono truncate max-w-[160px]">
                 {currentPeserta.id} • {namaLengkap}
               </p>
             </div>
@@ -223,7 +223,7 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
           <button
             type="button"
             onClick={onKeluar}
-            className="text-[11px] font-bold bg-red-600/80 hover:bg-red-600 text-white px-2.5 py-1.5 rounded-lg transition"
+            className="text-[11px] font-bold bg-red-50 hover:bg-red-600 text-red-700 hover:text-white border border-red-200 hover:border-transparent px-2.5 py-1.5 rounded-lg transition shadow-xs cursor-pointer"
           >
             Keluar
           </button>
@@ -236,25 +236,25 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
           {/* ========================================================================= */}
           {activeTab === 'ringkasan' && (
             <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Profile Card Banner */}
-              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-800">
-                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-44 h-44 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+              {/* Profile Card Banner - Dynamic Red Gradient */}
+              <div className="bg-gradient-to-br from-red-700 via-red-600 to-rose-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-red-600/20 relative overflow-hidden border border-red-500/30">
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-44 h-44 bg-black/10 rounded-full blur-3xl pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-2xl sm:text-3xl font-black text-white shadow-lg shadow-blue-500/20 border-2 border-white/10 shrink-0">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl font-black text-white shadow-lg border-2 border-white/30 shrink-0">
                       {namaLengkap.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="font-mono text-xs font-black bg-white/10 border border-white/10 px-2.5 py-0.5 rounded-full text-blue-300">
+                        <span className="font-mono text-xs font-black bg-white/20 border border-white/30 px-2.5 py-0.5 rounded-full text-white">
                           {currentPeserta.id}
                         </span>
                         <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                           currentPeserta.partisipasi === 'Ikut'
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            ? 'bg-emerald-500/30 text-emerald-100 border border-emerald-400/40'
+                            : 'bg-black/20 text-rose-100 border border-white/20'
                         }`}>
                           {currentPeserta.partisipasi === 'Ikut' ? 'Partisipasi: Ikut' : 'Tidak Ikut'}
                         </span>
@@ -262,22 +262,22 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
                       <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
                         {namaLengkap}
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-300 font-medium mt-0.5">
+                      <p className="text-xs sm:text-sm text-rose-100 font-medium mt-0.5">
                         {asalUnit} {currentPeserta.jk ? `• ${currentPeserta.jk}` : ''}
                       </p>
                     </div>
                   </div>
 
                   {/* Assigned Mobil Badge */}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:text-right backdrop-blur-xs shrink-0">
-                    <div className="flex items-center sm:justify-end gap-1.5 text-xs text-slate-400 font-medium mb-1">
-                      <Car className="w-4 h-4 text-red-400" />
+                  <div className="bg-white/15 border border-white/25 rounded-2xl p-4 sm:text-right backdrop-blur-md shrink-0 shadow-xs">
+                    <div className="flex items-center sm:justify-end gap-1.5 text-xs text-rose-100 font-medium mb-1">
+                      <Car className="w-4 h-4 text-white" />
                       <span>Alokasi Transportasi:</span>
                     </div>
                     <div className="text-base font-black text-white">
                       {assignedMobil}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
+                    <div className="text-[11px] text-rose-100/90 mt-0.5">
                       Rombongan Mobil Peserta
                     </div>
                   </div>
@@ -512,7 +512,7 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
                       <button
                         type="button"
                         onClick={handleDownloadQr}
-                        className="bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center space-x-2 transition shadow-xs cursor-pointer"
+                        className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 active:scale-[0.98] text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center space-x-2 transition shadow-md shadow-red-600/20 cursor-pointer"
                       >
                         <Download className="w-4 h-4" />
                         <span>Unduh QR Code (PNG)</span>

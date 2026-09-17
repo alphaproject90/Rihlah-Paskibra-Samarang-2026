@@ -285,19 +285,19 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header View */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-5 rounded-2xl border border-slate-800 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="flex items-center space-x-3">
-          <div className="p-3 bg-red-600/20 text-red-400 rounded-xl border border-red-500/30">
+          <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-200/60">
             <ClipboardCheck className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               Absen Sesi Kegiatan Lapangan
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 Global Seluruh Mobil
               </span>
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Presensi per agenda rihlah di lokasi. Panitia dapat menandai kehadiran tanpa batasan mobil.
             </p>
           </div>
@@ -310,7 +310,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
               if (kegiatanTerpilihId) muatAbsen(kegiatanTerpilihId);
             }}
             disabled={loadingKegiatan || loadingAbsen}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl border border-slate-700/80 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-xl border border-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
             title="Muat ulang data"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingKegiatan || loadingAbsen ? 'animate-spin' : ''}`} />
@@ -321,7 +321,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
             <button
               onClick={() => setShowModalTambah(true)}
               id="btn-tambah-kegiatan-modal"
-              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs font-bold rounded-xl shadow-md shadow-red-600/20 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Sesi Baru</span>
@@ -332,33 +332,33 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
       {/* Selector Sesi Kegiatan (Pills) */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+        <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
           <span>PILIH SESI KEGIATAN:</span>
           {daftarKegiatan.length > 0 && (
-            <span className="text-slate-500">{daftarKegiatan.length} sesi terdaftar</span>
+            <span className="text-slate-400">{daftarKegiatan.length} sesi terdaftar</span>
           )}
         </div>
 
         {loadingKegiatan && daftarKegiatan.length === 0 ? (
-          <div className="p-6 text-center text-slate-500 text-sm bg-slate-900/40 rounded-xl border border-slate-800">
+          <div className="p-6 text-center text-slate-500 text-sm bg-white rounded-xl border border-slate-200">
             <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-slate-400" />
             Memuat daftar kegiatan...
           </div>
         ) : daftarKegiatan.length === 0 ? (
-          <div className="p-8 text-center bg-slate-900/40 rounded-2xl border border-dashed border-slate-800 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center mx-auto">
+          <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-300 space-y-3 shadow-xs">
+            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
               <Calendar className="w-6 h-6" />
             </div>
-            <p className="text-sm font-medium text-slate-300">Belum ada sesi kegiatan yang dibuat</p>
+            <p className="text-sm font-medium text-slate-700">Belum ada sesi kegiatan yang dibuat</p>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
               {isSuperAdmin
-                ? 'Klik tombol "Sesi Baru" di atas untuk membuat sesi kegiatan pertama (misal: Apel Pembukaan, Sholat Berjamaah, Makan Siang).'
+                ? 'Klik tombol "Sesi Baru" di atas untuk membuat sesi kegiatan pertama (misal: Apel Pembukaan, Sholat Dzuhur, Games Lapangan).'
                 : 'Sesi kegiatan belum ditambahkan oleh Super Admin. Silakan hubungi Super Admin untuk membuat sesi kegiatan.'}
             </p>
             {isSuperAdmin && (
               <button
                 onClick={() => setShowModalTambah(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-xl shadow transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl shadow transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Buat Sesi Pertama
@@ -366,7 +366,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-800">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
             {daftarKegiatan.map((kegiatan) => {
               const isSelected = kegiatan.id === kegiatanTerpilihId;
               const countAbsen = kegiatan._count?.absen ?? 0;
@@ -375,23 +375,23 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                 <button
                   key={kegiatan.id}
                   onClick={() => setKegiatanTerpilihId(kegiatan.id)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border shrink-0 ${
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                     isSelected
-                      ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 ring-1 ring-red-400/30'
-                      : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-transparent shadow-md shadow-red-600/25 ring-1 ring-red-400/40'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-rose-50/60 hover:border-rose-200'
                   }`}
                 >
-                  <span className={`w-2 h-2 rounded-full ${kegiatan.aktif ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                  <span className={`w-2 h-2 rounded-full ${kegiatan.aktif ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                   <span>{kegiatan.nama}</span>
                   <span
                     className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      isSelected ? 'bg-black/30 text-white' : 'bg-slate-800 text-slate-400'
+                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {countAbsen} hadir
                   </span>
                   {!kegiatan.aktif && (
-                    <span className="text-[9px] uppercase px-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <span className="text-[9px] uppercase px-1 rounded bg-amber-100 text-amber-800 border border-amber-200">
                       Tutup
                     </span>
                   )}
@@ -404,23 +404,23 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
       {/* Kartu Detail Kegiatan & Metrik Kehadiran */}
       {kegiatanAktif && (
-        <div className="bg-slate-900/80 rounded-2xl border border-slate-800 p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">{kegiatanAktif.nama}</h2>
+                <h2 className="text-lg font-bold text-slate-900">{kegiatanAktif.nama}</h2>
                 <span
                   className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
                     kegiatanAktif.aktif
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
                   {kegiatanAktif.aktif ? 'Sesi Terbuka (Aktif)' : 'Sesi Ditutup'}
                 </span>
               </div>
               {kegiatanAktif.deskripsi && (
-                <p className="text-xs text-slate-400 mt-0.5">{kegiatanAktif.deskripsi}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{kegiatanAktif.deskripsi}</p>
               )}
             </div>
 
@@ -428,10 +428,10 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <button
                   onClick={() => handleToggleAktif(kegiatanAktif)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
                     kegiatanAktif.aktif
-                      ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
-                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                      ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
                   }`}
                 >
                   <Power className="w-3.5 h-3.5" />
@@ -440,7 +440,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
                 <button
                   onClick={() => handleHapusKegiatan(kegiatanAktif)}
-                  className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/20 transition-colors"
+                  className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
                   title="Hapus Sesi Kegiatan"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -451,27 +451,27 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
           {/* Stats Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-800">
-              <span className="text-[11px] font-medium text-slate-400">Total Peserta Ikut</span>
-              <p className="text-xl font-black text-white mt-0.5">{totalPesertaIkut}</p>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              <span className="text-[11px] font-medium text-slate-500">Total Peserta Ikut</span>
+              <p className="text-xl font-black text-slate-900 mt-0.5">{totalPesertaIkut}</p>
             </div>
-            <div className="p-3 bg-emerald-950/30 rounded-xl border border-emerald-500/20">
-              <span className="text-[11px] font-medium text-emerald-400">Sudah Hadir</span>
-              <p className="text-xl font-black text-emerald-300 mt-0.5">{totalHadir}</p>
+            <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200">
+              <span className="text-[11px] font-medium text-emerald-700">Sudah Hadir</span>
+              <p className="text-xl font-black text-emerald-700 mt-0.5">{totalHadir}</p>
             </div>
-            <div className="p-3 bg-amber-950/20 rounded-xl border border-amber-500/20">
-              <span className="text-[11px] font-medium text-amber-400">Belum Hadir</span>
-              <p className="text-xl font-black text-amber-300 mt-0.5">{totalBelumHadir}</p>
+            <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200">
+              <span className="text-[11px] font-medium text-amber-700">Belum Hadir</span>
+              <p className="text-xl font-black text-amber-700 mt-0.5">{totalBelumHadir}</p>
             </div>
-            <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-800">
-              <span className="text-[11px] font-medium text-slate-400">Persentase Kehadiran</span>
-              <p className="text-xl font-black text-red-400 mt-0.5">{persentaseHadir}%</p>
+            <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-200">
+              <span className="text-[11px] font-medium text-rose-700">Persentase Kehadiran</span>
+              <p className="text-xl font-black text-rose-700 mt-0.5">{persentaseHadir}%</p>
             </div>
           </div>
 
           {/* Progress Bar Visual */}
           <div className="space-y-1">
-            <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5">
+            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
               <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${persentaseHadir}%` }}
@@ -483,22 +483,22 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
       {/* Filter & Search Bar */}
       {kegiatanAktif && (
-        <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-3 shadow-xs">
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Cari nama atau ID peserta..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white transition"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -510,7 +510,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
               <select
                 value={filterMobil}
                 onChange={(e) => setFilterMobil(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white transition"
               >
                 <option value="SEMUA">Semua Mobil ({pesertaIkut.length})</option>
                 {opsiMobil.map((mobil) => (
@@ -526,7 +526,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white transition"
               >
                 <option value="SEMUA">Semua Status</option>
                 <option value="HADIR">Hadir Saja ({totalHadir})</option>
@@ -537,7 +537,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
             <span>
-              Menampilkan <b className="text-slate-300">{pesertaFiltered.length}</b> dari {pesertaIkut.length} peserta
+              Menampilkan <b className="text-slate-800">{pesertaFiltered.length}</b> dari {pesertaIkut.length} peserta
             </span>
             {(searchQuery || filterMobil !== 'SEMUA' || filterStatus !== 'SEMUA') && (
               <button
@@ -546,7 +546,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                   setFilterMobil('SEMUA');
                   setFilterStatus('SEMUA');
                 }}
-                className="text-red-400 hover:underline"
+                className="text-red-600 hover:underline font-semibold cursor-pointer"
               >
                 Reset Filter
               </button>
@@ -557,7 +557,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
       {/* Tabel Peserta & Presensi */}
       {kegiatanAktif && (
-        <div className="bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
           {loadingAbsen ? (
             <div className="p-12 text-center text-slate-500 text-sm">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-slate-400" />
@@ -569,9 +569,9 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300 border-collapse">
+              <table className="w-full text-left text-xs text-slate-700 border-collapse">
                 <thead>
-                  <tr className="bg-slate-800/60 text-slate-400 border-b border-slate-800 uppercase text-[10px] tracking-wider font-semibold">
+                  <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase text-[10px] tracking-wider font-semibold">
                     <th className="py-3 px-4 w-12 text-center">No</th>
                     <th className="py-3 px-4">ID & Nama Peserta</th>
                     <th className="py-3 px-4">Mobil</th>
@@ -579,7 +579,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-100">
                   {pesertaFiltered.map((peserta, idx) => {
                     const idPeserta = peserta.id || peserta.idPeserta || '';
                     const namaLengkap = peserta.nama || peserta.namaLengkap || '';
@@ -591,35 +591,35 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                     return (
                       <tr
                         key={idPeserta}
-                        className={`hover:bg-slate-800/40 transition-colors ${
-                          isHadir ? 'bg-emerald-950/10' : ''
+                        className={`hover:bg-slate-50/80 transition-colors ${
+                          isHadir ? 'bg-emerald-50/30' : ''
                         }`}
                       >
-                        <td className="py-3 px-4 text-center text-slate-500 font-mono">
+                        <td className="py-3 px-4 text-center text-slate-400 font-mono">
                           {idx + 1}
                         </td>
                         <td className="py-3 px-4">
-                          <div className="font-semibold text-white">{namaLengkap}</div>
-                          <div className="text-[10px] font-mono text-slate-500 flex items-center gap-1.5">
+                          <div className="font-semibold text-slate-900">{namaLengkap}</div>
+                          <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1.5">
                             <span>{idPeserta}</span>
                             <span>•</span>
                             <span>{asalSekolah}</span>
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700/60">
+                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200">
                             {peserta.mobil || 'Belum di-assign'}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           {isHadir ? (
                             <div>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 <Check className="w-3 h-3" />
                                 Hadir
                               </span>
                               {absenRecord?.waktuAbsen && (
-                                <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
                                   <span>{new Date(absenRecord.waktuAbsen).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                                   {absenRecord.dicatatOleh && (
@@ -629,7 +629,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                               )}
                             </div>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
                               Belum Hadir
                             </span>
                           )}
@@ -639,7 +639,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                             <button
                               onClick={() => handleBatalkanHadir(idPeserta)}
                               disabled={isLoadingThis || !kegiatanAktif.aktif}
-                              className="px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 rounded-lg text-xs font-semibold border border-rose-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold border border-rose-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                               title={!kegiatanAktif.aktif ? 'Sesi ditutup' : 'Batalkan tanda hadir'}
                             >
                               {isLoadingThis ? 'Memproses...' : 'Batal Hadir'}
@@ -648,7 +648,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                             <button
                               onClick={() => handleTandaiHadir(idPeserta)}
                               disabled={isLoadingThis || !kegiatanAktif.aktif}
-                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-600/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 ml-auto"
+                              className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 ml-auto cursor-pointer"
                               title={!kegiatanAktif.aktif ? 'Sesi ditutup' : 'Tandai peserta hadir'}
                             >
                               <Check className="w-3.5 h-3.5" />
@@ -668,18 +668,19 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
       {/* Modal Tambah Kegiatan Baru (SUPER_ADMIN) */}
       {showModalTambah && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-red-600/20 text-red-400 rounded-lg">
+                <div className="p-2 bg-red-50 text-red-600 rounded-xl border border-red-100">
                   <Calendar className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-bold text-white">Tambah Sesi Kegiatan Baru</h3>
+                <h3 className="text-base font-bold text-slate-900">Tambah Sesi Kegiatan Baru</h3>
               </div>
               <button
                 onClick={() => setShowModalTambah(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-700 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -687,8 +688,8 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
 
             <form onSubmit={handleTambahKegiatan} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nama Kegiatan <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nama Kegiatan <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -697,12 +698,12 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                   onChange={(e) => setNamaBaru(e.target.value)}
                   maxLength={100}
                   required
-                  className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Deskripsi / Catatan (Opsional)
                 </label>
                 <textarea
@@ -711,7 +712,7 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                   onChange={(e) => setDeskripsiBaru(e.target.value)}
                   maxLength={255}
                   rows={3}
-                  className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white transition resize-none"
                 />
               </div>
 
@@ -719,14 +720,14 @@ export const AbsenKegiatanView: React.FC<AbsenKegiatanViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowModalTambah(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-colors"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loadingSubmit}
-                  className="px-5 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-600/30 transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  className="px-5 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs font-bold rounded-xl shadow-md shadow-red-600/25 transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   {loadingSubmit ? (
                     <>
