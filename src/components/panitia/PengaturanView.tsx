@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ToggleLeft, 
   ToggleRight, 
@@ -10,10 +10,15 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  MessageSquare,
+  RotateCw,
+  Ban,
+  Clock,
+  Phone
 } from 'lucide-react';
 import { StatsRihlah } from '../../types';
-import { apiService } from '../../services/apiService';
+import { apiService, PanitiaPendingResetItem } from '../../services/apiService';
 import { STRONG_PASSWORD_REGEX } from '../../../lib/validation';
 
 interface PengaturanViewProps {
@@ -42,6 +47,79 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // State untuk antrean reset password peserta
+  const [resetQueue, setResetQueue] = useState<PanitiaPendingResetItem[]>([]);
+  const [loadingQueue, setLoadingQueue] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const fetchResetQueue = async () => {
+    setLoadingQueue(true);
+    try {
+      const res = await apiService.getPanitiaPendingResets();
+      if (res.success && res.data) {
+        setResetQueue(res.data);
+      }
+    } catch {
+      // ignore network errors
+    } finally {
+      setLoadingQueue(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchResetQueue();
+  }, []);
+
+  const handleSendWa = async (requestId: string) => {
+    setProcessingId(requestId);
+    try {
+      const res = await apiService.generatePanitiaWaLink(requestId);
+      if (res.success && res.data?.waLink) {
+        window.open(res.data.waLink, '_blank');
+        if (tampilkanNotif) {
+          tampilkanNotif('Tautan WhatsApp berhasil dibuka. Silakan kirimkan pesan ke peserta.', 'success');
+        }
+        await fetchResetQueue();
+      } else {
+        if (tampilkanNotif) {
+          tampilkanNotif(res.message || res.error || 'Gagal membuat tautan WhatsApp.', 'error');
+        }
+      }
+    } catch {
+      if (tampilkanNotif) {
+        tampilkanNotif('Terjadi kendala saat memproses tautan WhatsApp.', 'error');
+      }
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleCancelReset = async (requestId: string) => {
+    const confirm = window.confirm('Apakah Anda yakin ingin membatalkan permohonan reset password ini?');
+    if (!confirm) return;
+
+    setProcessingId(requestId);
+    try {
+      const res = await apiService.cancelPanitiaReset(requestId);
+      if (res.success) {
+        if (tampilkanNotif) {
+          tampilkanNotif('Permohonan reset password berhasil dibatalkan.', 'info');
+        }
+        await fetchResetQueue();
+      } else {
+        if (tampilkanNotif) {
+          tampilkanNotif(res.message || res.error || 'Gagal membatalkan permohonan.', 'error');
+        }
+      }
+    } catch {
+      if (tampilkanNotif) {
+        tampilkanNotif('Terjadi kendala saat membatalkan permohonan.', 'error');
+      }
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const handleTogglePendaftaran = async () => {
     const targetStatus = !pendaftaranDibuka;
@@ -374,6 +452,135 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Bagian 3: Antrean Reset Password Peserta (OTP WhatsApp) */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-slate-800">
+                  Antrean Reset Password Peserta (OTP WhatsApp)
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                  {resetQueue.length}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Kirimkan kode OTP resmi ke nomor WhatsApp peserta yang mengajukan lupa password.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={fetchResetQueue}
+            disabled={loadingQueue}
+            className="cursor-pointer inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 disabled:opacity-50 self-start sm:self-auto"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${loadingQueue ? 'animate-spin' : ''}`} />
+            <span>Segarkan Antrean</span>
+          </button>
+        </div>
+
+        {loadingQueue && resetQueue.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 flex flex-col items-center gap-2 text-xs">
+            <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+            <span>Memuat data antrean permohonan...</span>
+          </div>
+        ) : resetQueue.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-xs bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+            <CheckCircle2 className="w-8 h-8 text-emerald-500/50 mx-auto mb-1.5" />
+            <span className="font-semibold text-slate-600 block">Tidak ada antrean reset aktif</span>
+            <span>Semua permohonan telah selesai diproses atau belum ada pengajuan baru.</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                <tr>
+                  <th className="p-3">Peserta &amp; Unit</th>
+                  <th className="p-3">No. WhatsApp</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Percobaan</th>
+                  <th className="p-3">Waktu</th>
+                  <th className="p-3 text-right">Aksi Panitia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {resetQueue.map((item) => {
+                  const isProcessing = processingId === item.id;
+                  const isSent = item.status === 'SENT';
+
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                      <td className="p-3">
+                        <span className="font-bold text-slate-900 block">{item.nama}</span>
+                        <span className="text-[11px] text-slate-400 font-mono">{item.idPeserta}</span>
+                        <span className="text-[10px] text-slate-500 block">{item.unit}</span>
+                      </td>
+                      <td className="p-3 font-mono text-slate-700">
+                        {item.noWaTersensor}
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isSent
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {isSent ? 'Terkirim' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-slate-700">
+                        {item.attempts} / 3
+                      </td>
+                      <td className="p-3 text-[11px] text-slate-500">
+                        <div>Diajukan: {new Date(item.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
+                        {item.sentAt && (
+                          <div className="text-[10px] text-blue-600 font-medium">
+                            Kirim: {new Date(item.sentAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} ({item.sentBy || 'panitia'})
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleSendWa(item.id)}
+                          disabled={isProcessing}
+                          className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition active:scale-95 disabled:opacity-50"
+                        >
+                          {isProcessing ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          )}
+                          <span>{isSent ? 'Kirim Ulang WA' : 'Kirim OTP via WA'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCancelReset(item.id)}
+                          disabled={isProcessing}
+                          className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 transition active:scale-95 disabled:opacity-50"
+                          title="Batalkan permohonan reset ini"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          <span>Batalkan</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
