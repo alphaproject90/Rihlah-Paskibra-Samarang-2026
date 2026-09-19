@@ -4,11 +4,11 @@
  * Dipakai oleh semua endpoint yang butuh guard akses berbasis role mulai Tahap 2.
  * Tidak ada side-effect: semua fungsi di sini murni, hanya membaca payload JWT.
  *
- * Catatan kompatibilitas:
- * - Session dengan payload lama (hanya `role: 'panitia'`, tanpa `panitiaRole`)
- *   diperlakukan sebagai SUPER_ADMIN untuk backward-compatibility (fallback path
- *   login env-var masih menghasilkan `panitiaRole: 'SUPER_ADMIN'` di Tahap 1,
- *   tapi akun lama yang login sebelum Tahap 1 di-deploy belum punya field ini).
+ * CATATAN (revisi keamanan): Fallback backward-compat untuk token lama tanpa
+ * `panitiaRole` (yang otomatis dianggap SUPER_ADMIN) telah DIHAPUS. Token lama
+ * tanpa `panitiaRole` tidak lagi punya akses SUPER_ADMIN; pengguna terdampak
+ * cukup login ulang (token baru selalu memuat `panitiaRole`). Sekarang
+ * SUPER_ADMIN HANYA valid jika `panitiaRole === 'SUPER_ADMIN'` secara eksplisit.
  */
 
 export type SessionPayload = {
@@ -22,17 +22,13 @@ export type SessionPayload = {
 
 /**
  * Kembalikan true jika session adalah panitia dengan role SUPER_ADMIN.
- * Fallback: jika `panitiaRole` tidak ada tapi `role === 'panitia'`, dianggap SUPER_ADMIN
- * (untuk kompatibilitas token lama yang di-issue sebelum Tahap 1 di-deploy).
+ * Hanya menerima `panitiaRole === 'SUPER_ADMIN'` secara eksplisit — TIDAK ADA
+ * fallback lagi untuk token tanpa `panitiaRole` (lihat catatan revisi di atas).
  */
 export function isSuperAdmin(session: unknown): boolean {
   const s = session as SessionPayload;
   if (!s || s.role !== 'panitia') return false;
-  // Token baru: cek panitiaRole secara eksplisit
-  if (s.panitiaRole === 'SUPER_ADMIN') return true;
-  // Token lama (fallback): tidak punya panitiaRole → diperlakukan sebagai super admin
-  if (!s.panitiaRole) return true;
-  return false;
+  return s.panitiaRole === 'SUPER_ADMIN';
 }
 
 /**
