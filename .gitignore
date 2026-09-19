@@ -13,4 +13,6 @@ tsconfig.tsbuildinfo
 .env*
 *.zip
 *.sql
+# Migrasi Prisma WAJIB ter-track (pengecualian dari *.sql di atas)
+!prisma/migrations/**/*.sql
 backup-db/
