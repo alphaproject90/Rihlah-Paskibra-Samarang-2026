@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { PesertaRihlah, ScanResult } from '../types';
 import {
@@ -50,6 +50,61 @@ export const PesertaCheckInPanel: React.FC<PesertaCheckInPanelProps> = ({
   const [confirmed, setConfirmed] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // ─── Behavior a & d: timer auto-reset ref & fokus input ──────────────────
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const clearAutoResetTimer = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const focusInput = () => {
+    window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+  };
+
+  // Behavior a (i): batalkan timer saat komponen unmount
+  useEffect(() => {
+    return () => {
+      clearAutoResetTimer();
+    };
+  }, []);
+
+  // Simpan handle timer auto-reset di ref (dipakai oleh handleSubmit)
+  const setTimeout = (fn: () => void, ms?: number) => {
+    clearAutoResetTimer();
+    const id = window.setTimeout(() => {
+      fn();
+      timerRef.current = null;
+      focusInput();
+    }, ms);
+    timerRef.current = id;
+    return id;
+  };
+
+  // ─── Behavior b: hitung peserta eligible ──────────────────────────────────
+  const totalPesertaIkut = useMemo(() => {
+    return pesertaList.filter((p) => p.partisipasi === 'Ikut' && !p.deletedAt).length;
+  }, [pesertaList]);
+
+  // ─── Behavior c: hitung total kecocokan pencarian ──────────────────────────
+  const totalKecocokan = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return 0;
+    return pesertaList.filter((p) => {
+      if (p.partisipasi !== 'Ikut') return false;
+      if (p.deletedAt) return false;
+      const nama = (p.nama || p.namaLengkap || '').toLowerCase();
+      const unit = (p.unit || '').toLowerCase();
+      const id = (p.idPeserta || p.id || '').toLowerCase();
+      return nama.includes(q) || unit.includes(q) || id.includes(q);
+    }).length;
+  }, [query, pesertaList]);
+
   const labelMode = LABEL_MODE[scanMode];
   const warnaMode = WARNA_MODE[scanMode];
 
@@ -73,6 +128,7 @@ export const PesertaCheckInPanel: React.FC<PesertaCheckInPanelProps> = ({
 
   // ─── Handler pilih peserta ─────────────────────────────────────────────────
   const handlePilih = (p: PesertaRihlah) => {
+    clearAutoResetTimer();
     setSelected(p);
     setQuery(p.nama || p.namaLengkap || '');
     setConfirmed(false);
@@ -110,10 +166,12 @@ export const PesertaCheckInPanel: React.FC<PesertaCheckInPanelProps> = ({
 
   // ─── Reset ─────────────────────────────────────────────────────────────────
   const handleReset = () => {
+    clearAutoResetTimer();
     setSelected(null);
     setQuery('');
     setConfirmed(false);
     setErrorMsg('');
+    focusInput();
   };
 
   return (
@@ -140,7 +198,7 @@ export const PesertaCheckInPanel: React.FC<PesertaCheckInPanelProps> = ({
           </span>
         </div>
         <span className="text-white/70 text-xs font-mono hidden sm:block">
-          {pesertaList.length} peserta terdaftar
+          {totalPesertaIkut} peserta ikut
         </span>
       </div>
 
@@ -185,10 +243,12 @@ export const PesertaCheckInPanel: React.FC<PesertaCheckInPanelProps> = ({
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                 />
                 <input
+                  ref={inputRef}
                   id="input-cari-peserta"
                   type="search"
                   value={query}
                   onChange={(e) => {
+                    clearAutoResetTimer();
                     setQuery(e.target.value);
                     if (
                       selected &&
@@ -245,6 +305,11 @@ export const PesertaCheckInPanel: React.FC<PesertaCheckInPanelProps> = ({
                       <ChevronRight size={14} className="text-slate-300 flex-shrink-0" />
                     </motion.li>
                   ))}
+                  {totalKecocokan > 10 && (
+                    <li className="px-4 py-2.5 bg-slate-50 text-center text-xs text-slate-500">
+                      Menampilkan 10 dari {totalKecocokan} hasil &mdash; persempit pencarian.
+                    </li>
+                  )}
                 </motion.ul>
               )}
             </AnimatePresence>
