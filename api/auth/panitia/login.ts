@@ -194,79 +194,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PATH B: Fallback ke env-var (sistem lama — zero-downtime sebelum migrasi)
-    // Aktif selama akun belum di-migrate ke tabel Panitia via `npm run migrate:admin`.
+    // Akun tidak ditemukan di tabel Panitia — tolak.
+    // CATATAN (revisi keamanan): Fallback env-var (PANITIA_USERNAME /
+    // PANITIA_PASSWORD_HASH) telah DIHAPUS. Login panitia kini hanya lewat
+    // tabel Panitia (atau Google Sign-In Super Admin di atas). PRASYARAT
+    // DEPLOY: pastikan minimal 1 akun SUPER_ADMIN aktif di tabel Panitia
+    // (`npm run migrate:admin`), atau SUPER_ADMIN_EMAIL + GOOGLE_CLIENT_ID
+    // sudah diset agar login Google berfungsi.
     // ─────────────────────────────────────────────────────────────────────────
-    if (!process.env.PANITIA_USERNAME) {
-      // Tidak ada di DB, tidak ada di env — tolak
-      const { locked } = await recordFailedAttempt(rateLimitKey);
-      if (locked) {
-        logSystem({ level: 'CRITICAL', action: 'PANITIA_LOGIN_LOCKED', ipAddress: ip });
-        return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
-      }
-      return res.status(401).json({ error: 'Kredensial tidak valid' });
+    const { locked } = await recordFailedAttempt(rateLimitKey);
+    if (locked) {
+      logSystem({ level: 'CRITICAL', action: 'PANITIA_LOGIN_LOCKED', ipAddress: ip });
+      return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
     }
-
-    if (username !== process.env.PANITIA_USERNAME) {
-      const { locked } = await recordFailedAttempt(rateLimitKey);
-      if (locked) {
-        logSystem({ level: 'CRITICAL', action: 'PANITIA_LOGIN_LOCKED', ipAddress: ip });
-        return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
-      }
-      logSystem({
-        level: 'WARN',
-        action: 'PANITIA_LOGIN_FAILED',
-        details: { reason: 'invalid_username', via: 'env_fallback' },
-        ipAddress: ip,
-      });
-      return res.status(401).json({ error: 'Kredensial tidak valid' });
-    }
-
-    // Ambil hash password aktif dari DB Pengaturan atau fallback ke environment variable
-    const pengaturan = await prisma.pengaturan.findUnique({ where: { id: 'singleton' } });
-    const currentHash = (pengaturan as any)?.panitiaPasswordHash || process.env.PANITIA_PASSWORD_HASH;
-
-    if (!currentHash) {
-      return res.status(500).json({ error: 'Server misconfiguration: Password hash not configured.' });
-    }
-
-    const isValid = await bcrypt.compare(password, currentHash);
-    if (!isValid) {
-      const { locked } = await recordFailedAttempt(rateLimitKey);
-      if (locked) {
-        logSystem({ level: 'CRITICAL', action: 'PANITIA_LOGIN_LOCKED', ipAddress: ip });
-        return res.status(429).json({ error: 'Terlalu banyak percobaan gagal. Akses dikunci 15 menit.' });
-      }
-      logSystem({
-        level: 'WARN',
-        action: 'PANITIA_LOGIN_FAILED',
-        details: { reason: 'invalid_password', via: 'env_fallback' },
-        ipAddress: ip,
-      });
-      return res.status(401).json({ error: 'Kredensial tidak valid' });
-    }
-
-    // Fallback login berhasil
-    await resetRateLimit(rateLimitKey);
-    const token = await signToken(
-      {
-        role: 'panitia',
-        panitiaId: null,
-        username: process.env.PANITIA_USERNAME,
-        panitiaRole: 'SUPER_ADMIN' as const,
-        mobil: null,
-      },
-      'panitia'
-    );
-
     logSystem({
-      level: 'INFO',
-      action: 'PANITIA_LOGIN_SUCCESS',
-      details: { username: process.env.PANITIA_USERNAME, role: 'SUPER_ADMIN', via: 'env_fallback' },
+      level: 'WARN',
+      action: 'PANITIA_LOGIN_FAILED',
+      details: { reason: 'account_not_found', username },
       ipAddress: ip,
     });
-
-    return setCookieAndRespond(res, token, 'SUPER_ADMIN', process.env.PANITIA_USERNAME!);
+    return res.status(401).json({ error: 'Kredensial tidak valid' });
   } catch (error) {
     console.error('Panitia login error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
