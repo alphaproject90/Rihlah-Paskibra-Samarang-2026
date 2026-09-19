@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { HalamanType, NotifState, PesertaRihlah, StatsRihlah, FormPendaftaran } from './types';
+import { HalamanType, NotifState, PesertaRihlah, StatsRihlah, FormPendaftaran, ScanResult } from './types';
 import { PanitiaTabType } from './components/panitia/types';
 import { apiService } from './services/apiService';
 import { STRONG_PASSWORD_REGEX } from '../lib/validation';
@@ -15,6 +15,7 @@ import { DashboardPesertaView } from './components/DashboardPesertaView';
 import { PesertaStatistikView } from './components/PesertaStatistikView';
 import { LoginPanitiaView } from './components/LoginPanitiaView';
 import { QrScanner } from './components/QrScanner';
+import { PesertaCheckInPanel } from './components/PesertaCheckInPanel';
 
 const HALAMAN_VALID: HalamanType[] = [
   'home',
@@ -390,14 +391,15 @@ export const App: React.FC = () => {
   };
 
   // 6. Scan QR Code atau ID
-  const handleSubmitScan = async (idPeserta: string) => {
+  const handleSubmitScan = async (idPeserta: string): Promise<ScanResult> => {
     setLoading(true);
     try {
       const res = await apiService.prosesScan(idPeserta, scanMode);
 
       if (res.unauthorized) {
-        akhiriSesiPanitia(res.message || res.error || 'Sesi panitia berakhir. Silakan login ulang.');
-        return;
+        const pesanUnauth = res.message || res.error || 'Sesi panitia berakhir. Silakan login ulang.';
+        akhiriSesiPanitia(pesanUnauth);
+        return { success: false, message: pesanUnauth };
       }
       if (res.success || res.status === 'success') {
         const sesi =
@@ -410,12 +412,20 @@ export const App: React.FC = () => {
             : 'Tiba di Rumah';
         // res.nama sekarang tersedia — prosesScan sudah meneruskannya dari server
         const namaTampil = res.data?.nama || res.nama || idPeserta;
-        tampilkanNotif(`Presensi ${sesi} Berhasil: ${namaTampil} (${idPeserta})`, 'success');
+        const pesanSukses = `Presensi ${sesi} Berhasil: ${namaTampil} (${idPeserta})`;
+        tampilkanNotif(pesanSukses, 'success');
         muatStatistik();
         muatPeserta();
+        return { success: true, message: pesanSukses };
       } else {
-        tampilkanNotif(res.message || res.error || 'Scan gagal diproses.', 'error');
+        const pesanGagal = res.message || res.error || 'Scan gagal diproses.';
+        tampilkanNotif(pesanGagal, 'error');
+        return { success: false, message: pesanGagal };
       }
+    } catch {
+      const pesanError = 'Terjadi kesalahan tak terduga.';
+      tampilkanNotif(pesanError, 'error');
+      return { success: false, message: pesanError };
     } finally {
       setLoading(false);
     }
@@ -511,7 +521,7 @@ export const App: React.FC = () => {
           )}
 
           {halamanAktif === 'scanner' && (
-            <QrScanner
+            <PesertaCheckInPanel
               scanMode={scanMode as any}
               onKembali={() => {
                 navigasiKe('login-panitia');
@@ -519,8 +529,12 @@ export const App: React.FC = () => {
               }}
               onSubmitScan={handleSubmitScan}
               loading={loading}
+              pesertaList={pesertaList}
             />
           )}
+          {/* QrScanner tetap di-import sebagai fallback; jika dirender kembali:
+               onSubmitScan={async (id) => { await handleSubmitScan(id); }}
+               untuk menjaga kompatibilitas tipe Promise<void>-nya. */}
         </div>
       </div>
     </div>

@@ -171,6 +171,13 @@ export interface ScanApiResponse extends ApiResponse<ScanResultData> {
 }
 
 
+/** Nilai kembalian terstruktur dari handleSubmitScan (App.tsx) ke komponen scanner.
+ *  Menggantikan Promise<void> agar komponen dapat membedakan sukses vs gagal
+ *  tanpa bergantung pada side-effect (toast) yang tidak terdeteksi dari luar. */
+export interface ScanResult {
+  success: boolean;
+  message?: string;
+}
 
 // Tipe pendukung / interoperabilitas
 export type TingkatPeserta = 'Capas' | 'Paskibra Inti' | 'Purna' | 'Panitia' | 'Pembina';
