@@ -1000,6 +1000,35 @@ export const apiService = {
       return { ok: false, message: PESAN_KONEKSI };
     }
   },
+
+  verifikasiBukti: async (
+    code: string
+  ): Promise<{ ok: boolean; valid?: boolean; data?: { nama: string; unit: string; partisipasi: string }; message?: string }> => {
+    try {
+      const res = await fetch(`/api/peserta?resource=verifikasi&code=${encodeURIComponent(code)}`);
+      const json = await bacaJson(res);
+      if (!res.ok || !isObject(json)) {
+        const errorMsg = isObject(json) && (json.error || json.message)
+          ? String(json.error || json.message)
+          : `Gagal memverifikasi bukti (${res.status})`;
+        return { ok: false, valid: false, message: errorMsg };
+      }
+      if (json.valid && isObject(json.data)) {
+        return {
+          ok: true,
+          valid: true,
+          data: json.data as { nama: string; unit: string; partisipasi: string },
+        };
+      }
+      return {
+        ok: true,
+        valid: false,
+        message: typeof json.error === 'string' ? json.error : 'Kode verifikasi tidak valid.',
+      };
+    } catch {
+      return { ok: false, message: PESAN_KONEKSI };
+    }
+  },
 };
 
 

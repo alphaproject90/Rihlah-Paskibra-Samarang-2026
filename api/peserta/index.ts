@@ -13,16 +13,29 @@
  * tetap di batas Vercel Hobby plan (12 function).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../lib/prisma.js';
 import { getSession } from '../../lib/api/auth.js';
 import { isSuperAdmin, isAdminMobil, getMobilFromSession } from '../../lib/auth/roles.js';
+import { checkRateLimit, recordFailedAttempt } from '../../lib/auth/rateLimit.js';
 import { logSystem } from '../../lib/logger.js';
 import {
   BuatAkunPanitiaSchema,
   BuatKegiatanSchema,
   AbsenKegiatanSchema,
 } from '../../lib/validation/index.js';
+
+/**
+ * Helper: Komputasi verificationCode HMAC-SHA256 untuk bukti pendaftaran peserta.
+ * Digunakan bersama oleh resource 'bukti_pendaftaran' (penerbitan) dan 'verifikasi' (validasi publik).
+ */
+function computeVerificationCode(idPeserta: string, generatedAt: string, secret: string): string {
+  const hmac = crypto.createHmac('sha256', secret)
+    .update(`${idPeserta}:${generatedAt}`)
+    .digest('hex');
+  return `VERIF-${hmac.substring(0, 12).toUpperCase()}`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const resource = req.query.resource;
@@ -33,6 +46,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ─────────────────────────────────────────────────────────────────────────
   if (resource === 'publik') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+    const rateLimitKey = `publik_peserta_ip_${ip}`;
+    const rateLimitCheck = await checkRateLimit(rateLimitKey);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({ error: rateLimitCheck.message || 'Terlalu banyak permintaan. Coba lagi nanti.' });
+    }
+    await recordFailedAttempt(rateLimitKey, 60, 900);
 
     try {
       const sekolah = typeof req.query.sekolah === 'string' ? req.query.sekolah.trim() : '';
@@ -58,28 +79,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         whereClause.waktuPulang = { not: null };
       }
 
-      const pesertaPublik = await prisma.peserta.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          namaLengkap: true,
-          asalSekolah: true,
-          partisipasi: true,
-          waktuBerangkat: true,
-          waktuPulang: true,
-        },
-        orderBy: { namaLengkap: 'asc' },
-        take: 500,
-      });
+      const pageParam = parseInt(req.query.page as string, 10);
+      const limitParam = parseInt(req.query.limit as string, 10);
+      const isPaginated = !isNaN(pageParam) || !isNaN(limitParam);
 
+      const limit = isPaginated ? Math.min(Math.max(isNaN(limitParam) ? 50 : limitParam, 1), 100) : 500;
+      const page = isPaginated ? Math.max(isNaN(pageParam) ? 1 : pageParam, 1) : 1;
+
+      let pesertaPublik;
+      let total = 0;
+
+      if (isPaginated) {
+        const [records, count] = await Promise.all([
+          prisma.peserta.findMany({
+            where: whereClause,
+            select: {
+              id: true,
+              namaLengkap: true,
+              asalSekolah: true,
+              partisipasi: true,
+              waktuBerangkat: true,
+              waktuPulang: true,
+            },
+            orderBy: { namaLengkap: 'asc' },
+            skip: (page - 1) * limit,
+            take: limit,
+          }),
+          prisma.peserta.count({ where: whereClause }),
+        ]);
+        pesertaPublik = records;
+        total = count;
+      } else {
+        pesertaPublik = await prisma.peserta.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            namaLengkap: true,
+            asalSekolah: true,
+            partisipasi: true,
+            waktuBerangkat: true,
+            waktuPulang: true,
+          },
+          orderBy: { namaLengkap: 'asc' },
+          take: 500,
+        });
+      }
+
+      const baseIndex = isPaginated ? (page - 1) * limit : 0;
       const sanitized = pesertaPublik.map((p, idx) => ({
-        no: idx + 1,
+        no: baseIndex + idx + 1,
         nama: p.namaLengkap,
         unit: p.asalSekolah,
         partisipasi: p.partisipasi,
         sudahBerangkat: Boolean(p.waktuBerangkat),
         sudahPulang: Boolean(p.waktuPulang),
       }));
+
+      if (isPaginated) {
+        return res.status(200).json({
+          success: true,
+          data: sanitized,
+          meta: {
+            page,
+            limit,
+            total,
+            hasMore: page * limit < total,
+          },
+        });
+      }
 
       return res.status(200).json({ success: true, data: sanitized });
     } catch (error) {
@@ -94,6 +161,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ─────────────────────────────────────────────────────────────────────────
   if (resource === 'bukti_pendaftaran') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    if (!process.env.BUKTI_VERIF_SECRET) {
+      return res.status(500).json({ error: 'Server misconfiguration: BUKTI_VERIF_SECRET is not configured' });
+    }
 
     const pesertaSession = await getSession(req, 'peserta');
     if (!pesertaSession || (pesertaSession as any).role !== 'peserta') {
@@ -126,7 +197,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const generatedAt = new Date().toISOString();
-      const verificationCode = `VERIF-${Buffer.from(`${peserta.idPeserta}:${generatedAt}`).toString('base64').substring(0, 12).toUpperCase()}`;
+      const verificationCode = computeVerificationCode(peserta.idPeserta, generatedAt, process.env.BUKTI_VERIF_SECRET);
 
       return res.status(200).json({
         success: true,
@@ -142,12 +213,87 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           generatedAt,
           officialIssuedAt: generatedAt,
           verificationCode,
-          qrPayload: `${peserta.idPeserta}|${peserta.namaLengkap}|${verificationCode}`,
+          qrPayload: `${peserta.idPeserta}|${peserta.namaLengkap}|${verificationCode}|${generatedAt}`,
           panitiaContact: '0813-1383-1490',
         },
       });
     } catch (error) {
       console.error('Error in bukti pendaftaran endpoint:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ROUTE: /api/peserta?resource=verifikasi
+  // Endpoint Publik Verifikasi Keaslian Bukti Pendaftaran (Tahap 5C)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (resource === 'verifikasi') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 'unknown';
+    const rateLimitKey = `verifikasi_ip_${ip}`;
+    const rateLimitCheck = await checkRateLimit(rateLimitKey);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({ error: rateLimitCheck.message || 'Terlalu banyak permintaan. Coba lagi nanti.' });
+    }
+    await recordFailedAttempt(rateLimitKey, 30, 900);
+
+    const code = typeof req.query.code === 'string' ? req.query.code.trim() : '';
+    if (!code) {
+      return res.status(400).json({ valid: false, error: 'Format kode tidak valid.' });
+    }
+
+    const parts = code.split('|');
+    if (parts.length !== 4) {
+      return res.status(400).json({ valid: false, error: 'Format kode tidak valid.' });
+    }
+
+    const [idPeserta, , verificationCode, generatedAt] = parts;
+    if (!idPeserta || !verificationCode || !generatedAt) {
+      return res.status(400).json({ valid: false, error: 'Format kode tidak valid.' });
+    }
+
+    const verifSecret = process.env.BUKTI_VERIF_SECRET;
+    if (!verifSecret) {
+      return res.status(500).json({ error: 'Server misconfiguration: BUKTI_VERIF_SECRET is not configured' });
+    }
+
+    const computedCode = computeVerificationCode(idPeserta, generatedAt, verifSecret);
+    const bufComputed = Buffer.from(computedCode, 'utf-8');
+    const bufProvided = Buffer.from(verificationCode, 'utf-8');
+
+    const isMatch =
+      bufComputed.length === bufProvided.length &&
+      crypto.timingSafeEqual(bufComputed, bufProvided);
+
+    if (!isMatch) {
+      return res.status(200).json({ valid: false, error: 'Kode verifikasi tidak ditemukan atau tidak valid.' });
+    }
+
+    try {
+      const peserta = await prisma.peserta.findFirst({
+        where: { idPeserta, deletedAt: null },
+        select: {
+          namaLengkap: true,
+          asalSekolah: true,
+          partisipasi: true,
+        },
+      });
+
+      if (!peserta) {
+        return res.status(200).json({ valid: false, error: 'Kode verifikasi tidak ditemukan atau tidak valid.' });
+      }
+
+      return res.status(200).json({
+        valid: true,
+        data: {
+          nama: peserta.namaLengkap,
+          unit: peserta.asalSekolah,
+          partisipasi: peserta.partisipasi,
+        },
+      });
+    } catch (error) {
+      console.error('Error in verifikasi endpoint:', error);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
