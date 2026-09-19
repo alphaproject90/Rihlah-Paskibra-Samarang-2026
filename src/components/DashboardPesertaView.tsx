@@ -45,6 +45,7 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
   // Bukti Pendaftaran Server State
   const [buktiServerData, setBuktiServerData] = useState<BuktiPendaftaranData | null>(null);
   const [loadingBukti, setLoadingBukti] = useState<boolean>(false);
+  const [qrBuktiDataUrl, setQrBuktiDataUrl] = useState<string>('');
 
   // Upload Surat Ortu State
   const [isUploadingSurat, setIsUploadingSurat] = useState<boolean>(false);
@@ -104,6 +105,19 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
       mounted = false;
     };
   }, [activeTab, buktiServerData]);
+
+  // Generate QR Code Khusus Bukti Pendaftaran (dari qrPayload resmi)
+  useEffect(() => {
+    if (buktiServerData?.qrPayload) {
+      QRCode.toDataURL(buktiServerData.qrPayload, {
+        width: 240,
+        margin: 1,
+        color: { dark: '#0f172a', light: '#ffffff' }
+      })
+        .then((url) => setQrBuktiDataUrl(url))
+        .catch((err) => console.error('Error generating QR Bukti:', err));
+    }
+  }, [buktiServerData?.qrPayload]);
 
   const formatSize = (bytes: number): string => {
     if (!bytes || bytes <= 0) return '0 B';
@@ -634,9 +648,21 @@ export const DashboardPesertaView: React.FC<DashboardPesertaViewProps> = ({ pese
                       <span className="col-span-2 text-slate-800">{currentPeserta.medis || 'Tidak Ada'}</span>
                     </div>
                     {buktiServerData?.verificationCode && (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-2 items-center pt-1 border-t border-slate-100">
                         <span className="text-slate-400 font-medium">Kode Verifikasi</span>
-                        <span className="col-span-2 font-mono font-bold text-emerald-700">{buktiServerData.verificationCode}</span>
+                        <div className="col-span-2 flex items-center justify-between gap-3">
+                          <span className="font-mono font-bold text-emerald-700">
+                            {buktiServerData.verificationCode}
+                          </span>
+                          {qrBuktiDataUrl && (
+                            <div className="flex flex-col items-center p-1 bg-slate-50 border border-slate-200 rounded-lg shrink-0">
+                              <img src={qrBuktiDataUrl} alt="QR Verifikasi Keaslian" className="w-16 h-16" />
+                              <span className="text-[8px] font-semibold text-slate-500 mt-0.5">
+                                QR Verifikasi Keaslian
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
